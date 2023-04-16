@@ -1,0 +1,42 @@
+{
+    "VERSION":"1.0.0",
+    "color-styles":{
+        "normal":{
+            "name":"标准",
+            "colors":{
+                "chessboard":"khaki",
+                "red-label":"pink",
+                "blue-label":"skyblue",
+                "chess-bg":"lightyellow",
+                "blank-feasible-bg":"lightgreen",
+                "occupied-feasible-bg":"pink",
+                "red-chess-fg":"lightcoral",
+                "red-tran-chess-fg":"red",
+                "blue-chess-fg":"cornflowerblue",
+                "blue-tran-chess-fg":"blue",
+                "neutral-chess-fg":"green"
+            }
+        },
+        "dark":{
+            "name":"暗色",
+            "colors":{
+                "chessboard":"grey",
+                "red-label":"pink",
+                "blue-label":"skyblue",
+                "chess-bg":"darkslategrey",
+                "blank-feasible-bg":"green",
+                "occupied-feasible-bg":"firebrick",
+                "red-chess-fg":"pink",
+                "red-tran-chess-fg":"lightcoral",
+                "blue-chess-fg":"deepskyblue",
+                "blue-tran-chess-fg":"dodgerblue",
+                "neutral-chess-fg":"lightgreen"
+            }
+        }
+    },
+    "btn-style":{
+        "relief":"groove",
+        "bg":"snow"
+    },
+    "about":"版本: {}\n发布日期: 2023-04-16"
+}
