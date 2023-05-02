@@ -1,4 +1,4 @@
-from .static import ARR,COLORS
+from .static import ARR,static_data
 
 class Chess:
     def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],map_data,win_func):
@@ -120,18 +120,28 @@ class Chess:
         # 设置字体颜色
         if self.belong == 1:
             if self.is_tran or not self.tran_con:
-                self.fg = COLORS["red-tran-chess-fg"]
+                self.fg = static_data["colors"]["red-tran-chess-fg"]
             else:
-                self.fg = COLORS["red-chess-fg"]
+                self.fg = static_data["colors"]["red-chess-fg"]
         elif self.belong == 2:
             if self.is_tran or not self.tran_con:
-                self.fg = COLORS["blue-tran-chess-fg"]
+                self.fg = static_data["colors"]["blue-tran-chess-fg"]
             else:
-                self.fg = COLORS["blue-chess-fg"]
+                self.fg = static_data["colors"]["blue-chess-fg"]
             
         else:
-            self.fg = COLORS["neutral-chess-fg"]
+            self.fg = static_data["colors"]["neutral-chess-fg"]
         return text
+
+    # 获取基本信息
+    @property
+    def info(self):
+        belong = "红方" if self.belong == 1 else "蓝方" if self.belong == 2 else "中立"
+        is_captain = "是" if self.is_captain else "否"
+        is_tran = ("是" if self.is_tran else "否") if self.tran_con else "无法升变"
+        move = self.tran_move if self.is_tran else self.move
+        info = f"名称：{self.name}\n编号：{self.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}\n目前可行走函数：{move}"
+        return info
 
     # 棋子被吃函数
     def be_eaten(self):
@@ -152,6 +162,8 @@ class Map:
         self.rules = rules
         self.rl = len(self.map) # 地图行数
         self.cl = len(self.map[0]) # 地图列数
+        self.red_move_ne = 0 # 红方移动中立棋子次数
+        self.blue_move_ne = 0
     
     # 初始化棋盘
     # 每局初始化一次
@@ -183,7 +195,17 @@ class Map:
         return x
 
     # 移动棋子
-    def move(self,arr1:ARR,arr2:ARR):
+    def move(self,arr1:ARR,arr2:ARR,turn:int):
+        if self.rules["restrict_move_ne"] and self.chessboard[arr1[0]][arr1[1]] and self.chessboard[arr1[0]][arr1[1]].belong == 3:
+            if turn == 1:
+                self.red_move_ne += 1
+            else:
+                self.blue_move_ne += 1
+        else:
+            if turn == 1:
+                self.red_move_ne = 0
+            else:
+                self.blue_move_ne = 0
         if self.chessboard[arr2[0]][arr2[1]]:
             self.chessboard[arr2[0]][arr2[1]].be_eaten()
         self.chessboard[arr1[0]][arr1[1]],self.chessboard[arr2[0]][arr2[1]] = None,self.chessboard[arr1[0]][arr1[1]]

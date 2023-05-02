@@ -1,20 +1,19 @@
-import xlrd
+import sys
+
+if sys.platform != "win32":
+    sys.stdout("程序必须在Windows系统中运行")
+    sys.exit()
+
 from tkinter.messagebox import showinfo,showwarning
 
-from .static import ARR,MapViewer,static_data
+from .static import xlrd,ARR,MapViewer,static_data
 from .map import Chess,Map
 from .window import MainWindow,GameWindow,SettingWindow
 from .online import OnlineConn
 
-"""
-    未完成：
-    1. 特殊规则
-    2. 多人联机
-    3. 扩展
-"""
-
 class App:
-    def __init__(self):
+    def __init__(self,debug:bool = False):
+        self.debug = debug
         self.conn = OnlineConn(self)
         self.window = MainWindow({
             "get_map":self.get_map,
@@ -23,7 +22,7 @@ class App:
             "create_room":self.conn.create,
             "enter_room":self.conn.enter,
             "setting":self.setting
-        }) # 窗口调用的函数
+        },self.debug) # 窗口调用的函数
         self.map_data = None
         self.map_path = None
         if static_data["lastly-load-map"]:
@@ -34,19 +33,23 @@ class App:
             filename = self.window.choose_map_file()
         if not filename:
             return
-        try:
+        if self.debug:
             self.map_data = Map(*MapViewer.view(filename))
-            self.map_path = filename
-            self.window.set_map(self.map_path)
-        except FileNotFoundError:
-            if error_prompt:
-                showwarning("提示","未找到地图文件")
-        except (TypeError,xlrd.biffh.XLRDError):
-            if error_prompt:
-                showwarning("提示","地图文件格式错误")
         else:
-            if success_prompt:
-                showinfo("提示","地图文件加载成功")
+            try:
+                self.map_data = Map(*MapViewer.view(filename))
+            except FileNotFoundError:
+                if error_prompt:
+                    showwarning("提示","未找到地图文件")
+                return
+            except (TypeError,xlrd.biffh.XLRDError):
+                if error_prompt:
+                    showwarning("提示","地图文件格式错误")
+                return
+        if success_prompt:
+            showinfo("提示","地图文件加载成功")
+        self.map_path = filename
+        self.window.set_map(self.map_path)
 
     def start_game(self,online:bool = False):
         if not self.map_data:
@@ -98,7 +101,7 @@ class Game:
         window = self.red_window if belong == 1 else self.blue_window
         if self.chosen: # 是否已经选择棋子
             if arr in self.chosen[1]:
-                self.map_data.move(self.chosen[0],arr)
+                self.map_data.move(self.chosen[0],arr,self.turn)
                 self.turn = 1 if self.turn == 2 else 2
                 self.red_window.set_turn(self.turn)
                 self.red_window.refresh_map()
@@ -113,6 +116,11 @@ class Game:
                 return
             if chess.belong != belong and chess.belong != 3:
                 return
+            if chess.belong == 3:
+                if self.turn == 1 and self.map_data.red_move_ne == 2:
+                    return
+                elif self.turn == 2 and self.map_data.blue_move_ne == 2:
+                    return
             can_go = self.get_can_go(chess,arr)
             if can_go:
                 self.chosen = [arr,can_go]
@@ -154,14 +162,18 @@ class Game:
     # 显示棋子基本信息
     def get_info(self,arr:ARR):
         chess = self.map_data.chessboard[arr[0]][arr[1]]
-        if not chess:
-            return
-        belong = "红方" if chess.belong == 1 else "蓝方" if chess.belong == 2 else "中立"
-        is_captain = "是" if chess.is_captain else "否"
-        is_tran = ("是" if chess.is_tran else "否") if chess.tran_con else "无法升变"
-        move = chess.tran_move if chess.is_tran else chess.move
-        info = f"名称：{chess.name}\n编号：{chess.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}\n目前可行走函数：{move}"
-        showinfo("棋子信息",info)
+        if chess:
+            showinfo("棋子信息",chess.info)
+        else:
+            rules = {
+                "tran":"启用升变",
+                "back":"启用悔棋",
+                "restrict_move_ne":"限制连续3步以上移动中立棋子"
+            }
+            info = ""
+            for i in rules:
+                info += f"{rules[i]}：{'是' if self.map_data.rules[i] else '否'}\n"
+            showinfo("特殊规则",info[:-1])
 
     def win(self,belong:int):
         showinfo("提示",("红方" if belong == 2 else "蓝方") + "胜利") # 由于被吃棋子发送回调，所以belong相反

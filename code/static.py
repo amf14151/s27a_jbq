@@ -1,13 +1,39 @@
 import os
 import sys
-import xlrd
 import json
+
+from tkinter.messagebox import showinfo,showerror,askyesno
+
+# 导入第三方模块xlrd并进行版本判断
+try:
+    import xlrd
+except ModuleNotFoundError:
+    res = askyesno("提示","未安装支持库xlrd，是否立即进行安装？")
+    if res:
+        from pip._internal import main as pip
+        pip(["install","xlrd==1.2.0"])
+        showinfo("提示","请重新进入程序，如果仍然未安装请在cmd中使用以下命令手动安装xlrd：\npython.exe -m pip install xlrd==1.2.0")
+    sys.exit()
+if xlrd.__version__.startswith("2."):
+    showinfo("提示",f"xlrd版本过高，应使用1.2.0版本，当前版本为{xlrd.__version__}，请在cmd中使用以下命令手动重新安装xlrd：\npython.exe -m pip uninstall xlrd&&python.exe -m pip install xlrd==1.2.0")
+    sys.exit()
 
 basepath = os.path.split(__file__)[0]
 static_path = os.path.join(basepath,"static.json")
 setting_path = os.path.join(basepath,"setting.json")
 
 ARR = tuple[int,int] # 棋子位置数组
+
+def load(path:str):
+    with open(path,encoding = "utf-8") as rfile:
+        return json.load(rfile)
+
+def write(path:str,data):
+    with open(path,"w",encoding = "utf-8") as wfile:
+            json.dump(data,wfile)
+
+def check_update():
+    showinfo("提示","检查更新失败，请手动检查更新")
 
 class MapViewer:
     # 解析位置条件
@@ -58,7 +84,7 @@ class MapViewer:
         chesses = []
         for i in range(chesses_xs.nrows - 1):
             rd = chesses_xs.row(i + 1)
-            name = rd[1].value
+            name = str(rd[1].value)
             belong = int(rd[2].value)
             is_captain = rd[3].value == "c"
             move = [MapViewer.parse_move(k) for k in str(rd[4].value).split(";")]
@@ -81,29 +107,24 @@ class MapViewer:
         rules_xs = xs.sheet_by_name("rules")
         rules = {}
         rules["tran"] = rules_xs.cell_value(1,2) == "c" # 启用升变
-        rules["pro_mess"] = rules_xs.cell_value(2,2) == "c" # 将军提示
+        rules["back"] = rules_xs.cell_value(2,2) == "c" # 启用悔棋
         rules["restrict_move_ne"] = rules_xs.cell_value(3,2) == "c" # 限制连续3步以上移动中立棋子
         # 将打开的棋盘文件保存到设置中
-        with open(setting_path,encoding = "utf-8") as rfile:
-            setting = json.load(rfile)
-            setting["lastly-load-map"] = filename
-        with open(setting_path,"w",encoding = "utf-8") as wfile:
-            json.dump(setting,wfile)
+        setting = load(setting_path)
+        setting["lastly-load-map"] = filename
+        write(setting_path,setting)
         return (chesses,map,rules)
 
 def load_data():
-    with open(static_path,encoding = "utf-8") as rfile:
-        static = json.load(rfile)
+    static = load(static_path)
     if os.path.exists(setting_path):
-        with open(setting_path,encoding = "utf-8") as rfile:
-            setting = json.load(rfile)
+        setting = load(setting_path)
     else:
         setting = {
             "color-styles":"normal",
             "lastly-load-map":""
         }
-        with open(setting_path,"w",encoding = "utf-8") as wfile:
-            json.dump(setting,wfile)
+        write(setting_path,setting)
     static_data = {}
     static_data["VERSION"] = static["VERSION"]
     static_data["about"] = static["about"]
@@ -114,10 +135,16 @@ def load_data():
     static_data["lastly-load-map"] = setting["lastly-load-map"]
     return static_data
 
+def refresh_color(value:str):
+    setting = load(setting_path)
+    setting["color-styles"] = value
+    write(setting_path,setting)
+    static_data["color-style-name"] = value
+    static = load(static_path)
+    static_data["colors"] = static["color-styles"][value]["colors"]
+
 try:
     static_data = load_data()
-    COLORS = static_data["colors"]
 except (FileNotFoundError,KeyError):
-    from tkinter.messagebox import showerror
     showerror("错误","配置文件错误, 请尝试删除setting文件或重新下载static文件")
     sys.exit()
