@@ -1,9 +1,10 @@
 import tkinter as tk
-import webbrowser as wb
+import webbrowser
+
 from tkinter.messagebox import showinfo
 from tkinter.filedialog import askopenfilename
 
-from .static import ARR,check_update,static_data,refresh_color
+from .static import ARR,static_data,refresh_color
 from .map import Map
 
 class MainWindow(tk.Tk):
@@ -13,21 +14,22 @@ class MainWindow(tk.Tk):
         self.title(f"精班棋 {static_data['VERSION']}{' [debug mode]' if debug else ''}")
         self.geometry("480x280")
         self.resizable(width = False,height = False)
-        self.start_btn = tk.Button(self,text = "单人游戏",width = 60,height = 3,**static_data["btn-style"],command = self.app_api["start_game"])
+        self.start_btn = tk.Button(self,text = "单人游戏",width = 60,height = 3,**static_data["shape-style"]["btn-style"],command = self.app_api["start_game"])
         self.start_btn.pack(pady = 5)
-        self.map_label = tk.Label(self,text = "暂未选择",width = 60,height = 3,**static_data["btn-style"])
+        self.map_label = tk.Label(self,text = "暂未选择",width = 60,height = 3,**static_data["shape-style"]["label-style"])
         self.map_label.pack(pady = 5)
         self.map_btn_frame = tk.Frame(self)
         self.map_btn_frame.pack(pady = 5)
-        self.get_map_btn = tk.Button(self.map_btn_frame,text = "选择地图",width = 15,height = 2,**static_data["btn-style"],command = self.app_api["get_map"])
+        self.get_map_btn = tk.Button(self.map_btn_frame,text = "选择地图",width = 15,height = 2,**static_data["shape-style"]["btn-style"],command = self.app_api["get_map"])
         self.get_map_btn.pack(side = "left",padx = 5)
-        self.refresh_map_btn = tk.Button(self.map_btn_frame,text = "刷新地图",width = 15,height = 2,**static_data["btn-style"],command = self.app_api["refresh_map"])
+        self.refresh_map_btn = tk.Button(self.map_btn_frame,text = "刷新地图",width = 15,height = 2,**static_data["shape-style"]["btn-style"],command = self.app_api["refresh_map"])
         self.refresh_map_btn.pack(side = "right",padx = 5)
         self.init_menu()
 
     # 初始化菜单栏
     def init_menu(self):
         self.menu = tk.Menu(self)
+        self.config(menu = self.menu)
         # 文件菜单
         self.file_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "文件(F)",underline = 3,menu = self.file_menu)
@@ -44,14 +46,13 @@ class MainWindow(tk.Tk):
         self.game_menu.add_separator()
         self.game_menu.add_command(label = "新建对局",command = self.app_api["create_room"])
         self.game_menu.add_command(label = "加入对局",command = self.app_api["enter_room"])
-        self.config(menu = self.menu)
         # 帮助菜单
         self.help_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "帮助(H)",underline = 3,menu = self.help_menu)
-        self.help_menu.add_command(label = "精班棋文档",command = lambda:wb.open("https://github.com/amf14151/s27a_jbq/README.md"))
+        self.help_menu.add_command(label = "精班棋文档",command = self.open_url("https://github.com/amf14151/s27a_jbq/README.md"))
+        self.help_menu.add_command(label = "浏览扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/README.md#扩展"))
         self.help_menu.add_separator()
-        self.help_menu.add_command(label = "反馈",command = lambda:wb.open("https://github.com/amf14151/s27a_jbq"))
-        self.help_menu.add_command(label = "检查更新",command = check_update)
+        self.help_menu.add_command(label = "反馈",command = self.open_url("https://github.com/amf14151/s27a_jbq"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label = "关于精班棋",command = self.show_about)
 
@@ -59,8 +60,15 @@ class MainWindow(tk.Tk):
         filename = askopenfilename(filetypes = [("Excel Files","*.xls *.xlsx"),("All Files","*.*")],title = "选择地图文件")
         return filename
     
+    def choose_extension_file(self):
+        filename = askopenfilename(filetypes = [("Python Files","*.py"),("All Files","*.*")],title = "选择扩展文件")
+        return filename
+
     def set_map(self,filename:str):
         self.map_label["text"] = f"当前地图: \n{filename}"
+
+    def open_url(self,url:str):
+        return lambda:webbrowser.open(url)
 
     def show_about(self):
         showinfo("关于精班棋",static_data["about"].format(static_data["VERSION"]))
@@ -75,8 +83,31 @@ class GameWindow(tk.Tk):
         self.title("红方" if self.belong == 1 else "蓝方")
         self.resizable(width = False,height = False)
         self.protocol("WM_DELETE_WINDOW",stop_func)
+        self.init_menu(str,stop_func)
         self.init_chessboard()
         self.refresh_map()
+
+    # 初始化菜单栏
+    def init_menu(self,back_func,stop_func):
+        self.menu = tk.Menu(self)
+        self.config(menu = self.menu)
+        self.menu.add_command(label = "查看地图信息",command = self.map_info)
+        if False:
+            self.menu.add_command(label = "查看当前房间")
+        elif self.map_data.rules["back"]: # 仅在单人模式下生效
+            self.menu.add_command(label = "悔棋",command = back_func)
+        self.menu.add_command(label = "退出游戏",command = stop_func)
+    
+    def map_info(self):
+        rules = {
+            "tran":"启用升变",
+            "back":"启用悔棋",
+            "restrict_move_ne":"限制连续3步以上移动中立棋子"
+        }
+        info = ""
+        for i in rules:
+            info += f"{rules[i]}：{'是' if self.map_data.rules[i] else '否'}\n"
+        showinfo("特殊规则",info[:-1])
 
     #反方棋盘渲染反转横纵坐标
     def getx(self,x:int):
@@ -133,13 +164,18 @@ class GameWindow(tk.Tk):
                 self.chess_btn[i][j]["bg"] = static_data["colors"]["chess-bg"]
 
 class SettingWindow(tk.Tk):
-    def __init__(self):
+    def __init__(self,add_ext_func):
         super().__init__()
         self.title("设置")
-        self.geometry("240x180")
+        self.geometry("360x280")
         self.resizable(width = False,height = False)
+        # 扩展
+        self.extensions_label = tk.Label(self,text = "已加载扩展",width = 24,height = 2,**static_data["shape-style"]["label-style"])
+        self.extensions_label.pack(pady = 5)
+        self.add_extension_btn = tk.Button(self,text = "添加扩展",width = 16,height = 2,**static_data["shape-style"]["btn-style"],command = add_ext_func)
+        self.add_extension_btn.pack(pady = 5)
         # 颜色样式
-        self.set_color_style_label = tk.Label(self,text = "设置颜色样式",width = 20,height = 2)
+        self.set_color_style_label = tk.Label(self,text = "设置颜色样式",width = 24,height = 2,**static_data["shape-style"]["label-style"])
         self.set_color_style_label.pack(pady = 5)
         self.set_color_style_var = tk.StringVar()
         self.set_color_style_radius = list[tk.Radiobutton]()

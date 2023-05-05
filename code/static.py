@@ -32,9 +32,6 @@ def write(path:str,data):
     with open(path,"w",encoding = "utf-8") as wfile:
             json.dump(data,wfile)
 
-def check_update():
-    showinfo("提示","检查更新失败，请手动检查更新")
-
 class MapViewer:
     # 解析位置条件
     @staticmethod
@@ -131,7 +128,7 @@ def load_data():
     static_data["color-styles"] = [(i,static["color-styles"][i]["name"]) for i in static["color-styles"]]
     static_data["color-style-name"] = setting["color-styles"]
     static_data["colors"] = static["color-styles"][setting["color-styles"]]["colors"]
-    static_data["btn-style"] = static["btn-style"]
+    static_data["shape-style"] = static["shape-style"]
     static_data["lastly-load-map"] = setting["lastly-load-map"]
     return static_data
 

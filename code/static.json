@@ -34,9 +34,14 @@
             }
         }
     },
-    "btn-style":{
-        "relief":"groove",
-        "bg":"snow"
+    "shape-style":{
+        "btn-style":{
+            "relief":"groove",
+            "bg":"snow"
+        },
+        "label-style":{
+            "relief":"groove"
+        }
     },
     "about":"版本: {}\n发布日期: 2023-05-14"
 }

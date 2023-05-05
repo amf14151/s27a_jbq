@@ -9,12 +9,18 @@ from tkinter.messagebox import showinfo,showwarning
 from .static import xlrd,ARR,MapViewer,static_data
 from .map import Chess,Map
 from .window import MainWindow,GameWindow,SettingWindow
+from .extension import Extension
 from .online import OnlineConn
 
 class App:
-    def __init__(self,debug:bool = False):
-        self.debug = debug
+    def __init__(self):
         self.conn = OnlineConn(self)
+        self.map_data = None
+        self.map_path = None
+        self.extension = Extension(self)
+
+    def run(self,debug:bool = False):
+        self.debug = debug
         self.window = MainWindow({
             "get_map":self.get_map,
             "refresh_map":lambda:self.get_map(self.map_path,success_prompt = True),
@@ -23,10 +29,9 @@ class App:
             "enter_room":self.conn.enter,
             "setting":self.setting
         },self.debug) # 窗口调用的函数
-        self.map_data = None
-        self.map_path = None
         if static_data["lastly-load-map"]:
             self.get_map(static_data["lastly-load-map"],False)
+        self.window.mainloop()
 
     def get_map(self,filename:str = None,error_prompt:bool = True,success_prompt:bool = False):
         if not filename:
@@ -55,23 +60,25 @@ class App:
         if not self.map_data:
             showinfo("提示","暂未选择地图")
             return
-        game = Game(self.map_data,self.conn if online else None)
+        game = Game(self.map_data,self.extension,self.conn if online else None)
         self.window.withdraw()
         game.start()
         self.window.deiconify()
 
-    def setting(self):
-        setting_window = SettingWindow()
-        setting_window.mainloop()
+    def add_extension(self):
+        filename = self.window.choose_extension_file()
+        self.extension.add_extension(filename)
 
-    def run(self):
-        self.window.mainloop()
+    def setting(self):
+        setting_window = SettingWindow(self.add_extension)
+        setting_window.mainloop()
 
 # 游戏类
 # 每场创建一个新的Game对象
 class Game:
-    def __init__(self,map_data:Map,online_conn:OnlineConn = None):
+    def __init__(self,map_data:Map,extension:Extension,online_conn:OnlineConn = None):
         self.map_data = map_data
+        self.extension = extension
         self.online_conn = online_conn
         self.map_data.init_chessboard(self.win)
         self.red_window = GameWindow(1,self.map_data,self.click_func,self.get_info,self.stop)
@@ -102,6 +109,25 @@ class Game:
         if self.chosen: # 是否已经选择棋子
             if arr in self.chosen[1]:
                 self.map_data.move(self.chosen[0],arr,self.turn)
+                # 将军检测
+                can_go = list[ARR]()
+                cap_arr = list[ARR]()
+                for i in range(self.map_data.rl):
+                    for j in range(self.map_data.cl):
+                        chess = self.map_data.chessboard[i][j]
+                        if not chess:
+                            continue
+                        if chess.belong == self.turn:
+                            can_go.extend(self.get_can_go(chess,(i,j)))
+                        elif chess.belong != self.turn and chess.belong != 3 and chess.is_captain:
+                            cap_arr.append((i,j))
+                mess = False
+                for i in cap_arr:
+                    if i in can_go:
+                        mess = True
+                        break
+                text = f"{'红方' if self.turn == 1 else '蓝方'}将军！" if mess else ""
+                self.blue_window.mess_label["text"] = self.red_window.mess_label["text"] = text
                 self.turn = 1 if self.turn == 2 else 2
                 self.red_window.set_turn(self.turn)
                 self.red_window.refresh_map()
@@ -164,16 +190,6 @@ class Game:
         chess = self.map_data.chessboard[arr[0]][arr[1]]
         if chess:
             showinfo("棋子信息",chess.info)
-        else:
-            rules = {
-                "tran":"启用升变",
-                "back":"启用悔棋",
-                "restrict_move_ne":"限制连续3步以上移动中立棋子"
-            }
-            info = ""
-            for i in rules:
-                info += f"{rules[i]}：{'是' if self.map_data.rules[i] else '否'}\n"
-            showinfo("特殊规则",info[:-1])
 
     def win(self,belong:int):
         showinfo("提示",("红方" if belong == 2 else "蓝方") + "胜利") # 由于被吃棋子发送回调，所以belong相反
