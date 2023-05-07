@@ -14,25 +14,27 @@ from .online import OnlineConn
 
 class App:
     def __init__(self):
-        self.conn = OnlineConn(self)
         self.map_data = None
         self.map_path = None
-        self.extension = Extension(self)
 
     def run(self,debug:bool = False):
         self.debug = debug
+        self.conn = OnlineConn(self)
+        self.extension = Extension(self)
         self.window = MainWindow({
+            # 主窗口调用的函数
             "get_map":self.get_map,
             "refresh_map":lambda:self.get_map(self.map_path,success_prompt = True),
             "start_game":self.start_game,
             "create_room":self.conn.create,
             "enter_room":self.conn.enter,
             "setting":self.setting
-        },self.debug) # 窗口调用的函数
+        },self.debug)
         if static_data["lastly-load-map"]:
             self.get_map(static_data["lastly-load-map"],False)
         self.window.mainloop()
 
+    # 获取并加载地图
     def get_map(self,filename:str = None,error_prompt:bool = True,success_prompt:bool = False):
         if not filename:
             filename = self.window.choose_map_file()
@@ -60,7 +62,7 @@ class App:
         if not self.map_data:
             showinfo("提示","暂未选择地图")
             return
-        game = Game(self.map_data,self.extension,self.conn if online else None)
+        game = Game(self.map_data,self.conn if online else None)
         self.window.withdraw()
         game.start()
         self.window.deiconify()
@@ -76,9 +78,8 @@ class App:
 # 游戏类
 # 每场创建一个新的Game对象
 class Game:
-    def __init__(self,map_data:Map,extension:Extension,online_conn:OnlineConn = None):
+    def __init__(self,map_data:Map,online_conn:OnlineConn = None):
         self.map_data = map_data
-        self.extension = extension
         self.online_conn = online_conn
         self.map_data.init_chessboard(self.win)
         self.red_window = GameWindow(1,self.map_data,self.click_func,self.get_info,self.stop)
@@ -93,8 +94,9 @@ class Game:
         self.running = True
         self.turn = 1
         self.chosen = None
-        self.red_window.set_turn(1)
-        self.blue_window.set_turn(1)
+        self.red_window.set_text("turn",1)
+        self.blue_window.set_text("turn",1)
+        Extension.Ext.api.turn = 1
         while self.running:
             self.red_window.update()
             self.blue_window.update()
@@ -126,17 +128,18 @@ class Game:
                     if i in can_go:
                         mess = True
                         break
-                text = f"{'红方' if self.turn == 1 else '蓝方'}将军！" if mess else ""
-                self.blue_window.mess_label["text"] = self.red_window.mess_label["text"] = text
+                self.red_window.set_text("mess",self.turn if mess else 0)
+                self.blue_window.set_text("mess",self.turn if mess else 0)
                 self.turn = 1 if self.turn == 2 else 2
-                self.red_window.set_turn(self.turn)
+                self.red_window.set_text("turn",self.turn)
+                self.blue_window.set_text("turn",self.turn)
+                Extension.Ext.api.turn = self.turn
                 self.red_window.refresh_map()
-                self.blue_window.set_turn(self.turn)
                 self.blue_window.refresh_map()
             else:
-                window.remove_choose(self.chosen[1])
+                window.choose(self.chosen[1],remove = True)
             self.chosen = None
-        else:#选择棋子
+        else: # 选择棋子
             chess = self.map_data.chessboard[arr[0]][arr[1]]
             if not chess:
                 return
@@ -148,41 +151,37 @@ class Game:
                 elif self.turn == 2 and self.map_data.blue_move_ne == 2:
                     return
             can_go = self.get_can_go(chess,arr)
+            # 载入扩展修改can_go
+            can_go = Extension.Ext.check_can_go(can_go,chess,arr)
             if can_go:
                 self.chosen = [arr,can_go]
                 window.choose(can_go)
 
     # 返回当前棋子可以行走的格子
     def get_can_go(self,chess:Chess,arr:ARR):
-        i,j = arr[0],arr[1]
         can_go = list[ARR]()
-        #行走一格
-        def wk1(x:int,ia:int,ja:int):
-            if x in chess.now_move[1]:
-                k = 1
-                while 0 <= i + ia * k < self.map_data.rl and 0 <= j + ja * k < self.map_data.cl:
-                    mp = self.map_data.chessboard[i + ia * k][j + ja * k]
-                    if not mp:
-                        can_go.append((i + ia * k,j + ja * k))
-                    elif chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn:
-                        can_go.append((i + ia * k,j + ja * k))
-                        break
-                    else:
-                        break
-                    k += 1
-            elif x in chess.now_move[0]:
-                if 0 <= i + ia < self.map_data.rl and 0 <= j + ja < self.map_data.cl:
-                    mp = self.map_data.chessboard[i + ia][j + ja]
-                    if (not mp) or (chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn):
-                        can_go.append((i + ia,j + ja))
-        wk1(1,-1,-1)
-        wk1(2,-1,0)
-        wk1(3,-1,1)
-        wk1(4,0,-1)
-        wk1(5,0,1)
-        wk1(6,1,-1)
-        wk1(7,1,0)
-        wk1(8,1,1)
+        for i in chess.now_move[0]: # 行走一格
+            d_arr = self.map_data.get_arr_by_rd(arr,i,1)
+            if not d_arr:
+                continue
+            mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
+            if (not mp) or (chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn):
+                can_go.append(d_arr)
+        for i in chess.now_move[1]:
+            k = 1
+            while True:
+                d_arr = self.map_data.get_arr_by_rd(arr,i,k)
+                if not d_arr:
+                    break
+                mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
+                if not mp: # 空格，继续向远处搜索
+                    can_go.append(d_arr)
+                elif chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn:
+                    can_go.append(d_arr)
+                    break
+                else:
+                    break
+                k += 1
         return can_go
 
     # 显示棋子基本信息

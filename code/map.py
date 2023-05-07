@@ -1,4 +1,5 @@
 from .static import ARR,static_data
+from .extension import Extension
 
 class Chess:
     def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],map_data,win_func):
@@ -13,67 +14,6 @@ class Chess:
         self.win_func = win_func
         self.is_tran = False
 
-    # 棋子位置是否符合规则
-    def is_in_position(self,arr:ARR,loc:list[tuple]):
-        get_abs_pos = lambda a,al:(a - 1) if a > 0 else a + al # 把输入的含正负坐标转换为0-n的坐标
-        for i in loc:
-            command = i[0]
-            if command == "X": # 函数X（行）
-                for j in i[1:]:
-                    if arr[0] == get_abs_pos(j,self.map_data.rl):
-                        return True
-            elif command == "Y": # 函数Y（列）
-                for j in i[1:]:
-                    if arr[1] == get_abs_pos(j,self.map_data.cl):
-                        return True
-            elif command == "P": # 函数P（点）
-                if arr == [get_abs_pos(i[1],self.map_data.rl),get_abs_pos(i[2],self.map_data.cl)]:
-                    return True
-            elif command == "D" or command == "R": # 函数D[i|t|d]（相对距离） 函数R[i|r|t|d]（相对距离、方向）
-                i_arr = self.map_data.get_chess_arr_by_id(i[1]) # 相对棋子坐标
-                if not i_arr:
-                    continue
-                dis = abs(i_arr[0] - arr[0]) + abs(i_arr[1] - arr[1]) # 相对距离
-                in_dis = False
-                if i[2] == 1 and dis > i[3]: # 大于
-                    in_dis = True
-                elif i[2] == 0 and dis == i[3]: # 等于
-                    in_dis = True
-                elif i[2] == -1 and dis < i[3]: # 小于
-                    in_dis = True
-                if not in_dis:
-                    continue
-                if command == "D":
-                    return True
-                # 还需要进行方向判定
-                if i_arr[0] < arr[0]: # i棋子x坐标较小（在上方）
-                    if i_arr[1] < arr[1]:
-                        dire = 1
-                    elif i_arr[1] == arr[1]:
-                        dire = 2
-                    else:
-                        dire = 3
-                elif i_arr[0] == arr[0]:
-                    if i_arr[1] < arr[1]:
-                        dire = 4
-                    elif i_arr[1] == arr[1]: # 重合，不计
-                        dire = 0
-                    else:
-                        dire = 5
-                else:
-                    if i_arr[1] < arr[1]:
-                        dire = 6
-                    elif i_arr[1] == arr[1]:
-                        dire = 7
-                    else:
-                        dire = 8
-                if dire in i[4:]:
-                    return True
-            elif command == "T": # 函数T[i]（多个、已死亡）
-                if not self.map_data.get_chess_arr_by_id(i[1]):
-                    return True
-        return False
-
     # 当前可移动位置
     @property
     def now_move(self):
@@ -81,19 +21,18 @@ class Chess:
         move = list[list[int]]()
         for i in (self.tran_move if self.is_tran else self.move):
             move.append([])
-            # i的示例：[(1,[('Y',1),('Y',2)]),(2,[('Y',3),('Y',4)]),(3,)]
             for j in i:
                 if len(j) == 1: # 没有判断条件
                     move[-1].append(j[0])
                 elif len(j) == 2:
-                    if self.is_in_position(arr,j[1]):
+                    if self.map_data.is_in_position(arr,j[1]):
                         move[-1].append(j[0])
         return move
 
     # 在按钮上显示的文字
     def text(self,rev:bool):
         text = ""
-        now_move = self.now_move # 每次调用self.now_move都需要重新计算，因此先赋值中间变量
+        now_move = self.now_move # 先赋值中间变量，避免调用self.now_move属性时重新计算
         def _in(num,string = " " * 3):
             nonlocal text
             if num in now_move[1]:
@@ -128,7 +67,6 @@ class Chess:
                 self.fg = static_data["colors"]["blue-tran-chess-fg"]
             else:
                 self.fg = static_data["colors"]["blue-chess-fg"]
-            
         else:
             self.fg = static_data["colors"]["neutral-chess-fg"]
         return text
@@ -147,12 +85,12 @@ class Chess:
     def be_eaten(self):
         if self.is_captain:
             self.win_func(self.belong) # 败方发送胜利回调
-    
+
     # 升变条件检测
     def tran(self,arr:ARR):
         if self.is_tran:
             return
-        if self.is_in_position(arr,self.tran_con):
+        if self.map_data.is_in_position(arr,self.tran_con):
             self.is_tran = True
 
 class Map:
@@ -164,7 +102,7 @@ class Map:
         self.cl = len(self.map[0]) # 地图列数
         self.red_move_ne = 0 # 红方移动中立棋子次数
         self.blue_move_ne = 0
-    
+
     # 初始化棋盘
     # 每局初始化一次
     def init_chessboard(self,win_func):
@@ -176,7 +114,24 @@ class Map:
                     self.chessboard[-1].append(Chess(j,*self.chesses[j - 1],self,win_func))
                 else:
                     self.chessboard[-1].append(None)
-    
+
+    # 根据方向距离返回目标棋盘格
+    def get_arr_by_rd(self,arr:ARR,r:int,d:int) -> ARR:
+        rs_list = {
+            1:(-1,-1),
+            2:(-1,0),
+            3:(-1,1),
+            4:(0,-1),
+            5:(0,1),
+            6:(1,-1),
+            7:(1,0),
+            8:(1,1)
+        } # 方向对应列表
+        d_arr = (arr[0] + rs_list[r][0] * d,arr[1] + rs_list[r][1] * d)
+        if 0 <= d_arr[0] < self.rl and 0 <= d_arr[1] < self.cl:
+            return d_arr
+        return None
+
     # 获取棋子位置
     def get_chess_arr(self,chess:Chess):
         for i in range(self.rl):
@@ -184,6 +139,7 @@ class Map:
                 if self.chessboard[i][j] is chess:
                     return (i,j)
 
+    # 根据id获取棋子位置
     def get_chess_arr_by_id(self,id:int):
         x = None
         for i in range(self.rl):
@@ -193,6 +149,28 @@ class Map:
                         return None
                     x = (i,j)
         return x
+
+    # 棋子位置是否符合规则
+    def is_in_position(self,arr:ARR,loc:list[tuple]):
+        get_abs_pos = lambda a,al:(a - 1) if a > 0 else a + al # 把输入的含正负坐标转换为0-n的坐标
+        for i in loc:
+            command = i[0]
+            if command == "X": # 函数X（行）
+                for j in i[1:]:
+                    if arr[0] == get_abs_pos(j,self.rl):
+                        return True
+            elif command == "Y": # 函数Y（列）
+                for j in i[1:]:
+                    if arr[1] == get_abs_pos(j,self.cl):
+                        return True
+            elif command == "P": # 函数P（点）
+                if arr == [get_abs_pos(i[1],self.rl),get_abs_pos(i[2],self.cl)]:
+                    return True
+            for j in Extension.Ext.loc_rules: # 扩展中的函数
+                if command == j:
+                    if Extension.Ext.loc_rules[j](i[1:],arr):
+                        return True
+        return False
 
     # 移动棋子
     def move(self,arr1:ARR,arr2:ARR,turn:int):

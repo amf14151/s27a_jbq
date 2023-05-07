@@ -6,13 +6,14 @@ from tkinter.filedialog import askopenfilename
 
 from .static import ARR,static_data,refresh_color
 from .map import Map
+from .extension import Extension
 
 class MainWindow(tk.Tk):
     def __init__(self,app_api:dict,debug:bool):
         super().__init__()
         self.app_api = app_api
         self.title(f"精班棋 {static_data['VERSION']}{' [debug mode]' if debug else ''}")
-        self.geometry("480x280")
+        self.geometry("480x360")
         self.resizable(width = False,height = False)
         self.start_btn = tk.Button(self,text = "单人游戏",width = 60,height = 3,**static_data["shape-style"]["btn-style"],command = self.app_api["start_game"])
         self.start_btn.pack(pady = 5)
@@ -97,7 +98,7 @@ class GameWindow(tk.Tk):
         elif self.map_data.rules["back"]: # 仅在单人模式下生效
             self.menu.add_command(label = "悔棋",command = back_func)
         self.menu.add_command(label = "退出游戏",command = stop_func)
-    
+
     def map_info(self):
         rules = {
             "tran":"启用升变",
@@ -140,17 +141,16 @@ class GameWindow(tk.Tk):
                 self.click_func((self.getx(x),self.gety(y)),self.belong)
         return wrapper
 
-    def set_turn(self,turn:int):
-        self.turn_label["text"] = f"{'己方' if turn == self.belong else '对方'}回合"
+    def set_text(self,type:str,fro:int):
+        if type == "turn": # 设置回合
+            self.turn_label["text"] = f"{'己方' if fro == self.belong else '对方'}回合"
+        elif type == "mess": # 设置将军
+            self.mess_label["text"] = f"{'红方' if fro == 1 else '蓝方'}将军！" if fro else ""
 
-    def choose(self,can_go:list[ARR]):
+    def choose(self,can_go:list[ARR],remove:bool = False):
         for i in can_go:
-            bg = static_data["colors"]["occupied-feasible-bg" if self.map_data.chessboard[i[0]][i[1]] else "blank-feasible-bg"]
-            self.chess_btn[self.getx(i[0])][self.gety(i[1])]["bg"] = bg
-
-    def remove_choose(self,can_go:list[ARR]):
-        for i in can_go:
-            self.chess_btn[self.getx(i[0])][self.gety(i[1])]["bg"] = static_data["colors"]["chess-bg"]
+            bg = "chess-bg" if remove else ("occupied-feasible-bg" if self.map_data.chessboard[i[0]][i[1]] else "blank-feasible-bg")
+            self.chess_btn[self.getx(i[0])][self.gety(i[1])]["bg"] = static_data["colors"][bg]
 
     def refresh_map(self):
         for i in range(self.map_data.rl):
@@ -167,20 +167,30 @@ class SettingWindow(tk.Tk):
     def __init__(self,add_ext_func):
         super().__init__()
         self.title("设置")
-        self.geometry("360x280")
+        self.geometry("480x360")
         self.resizable(width = False,height = False)
+        self.main_frame = tk.Frame(self) # 解决布局分布在两侧的问题
+        self.main_frame.pack()
         # 扩展
-        self.extensions_label = tk.Label(self,text = "已加载扩展",width = 24,height = 2,**static_data["shape-style"]["label-style"])
-        self.extensions_label.pack(pady = 5)
-        self.add_extension_btn = tk.Button(self,text = "添加扩展",width = 16,height = 2,**static_data["shape-style"]["btn-style"],command = add_ext_func)
+        self.extension_frame = tk.Frame(self.main_frame)
+        self.extension_frame.pack(side = "left",fill = "y",padx = 18)
+        self.extension_label = tk.Label(self.extension_frame,text = "已加载扩展",width = 24,height = 2,**static_data["shape-style"]["label-style"])
+        self.extension_label.pack(pady = 5)
+        self.extension_labels = list[tk.Label]()
+        for i in Extension.Ext.extensions:
+            self.extension_labels.append(tk.Label(self.extension_frame,text = i,width = 20,height = 1,**static_data["shape-style"]["label-style"]))
+            self.extension_labels[-1].pack(pady = 5)
+        self.add_extension_btn = tk.Button(self.extension_frame,text = "添加扩展",width = 16,height = 2,**static_data["shape-style"]["btn-style"],command = add_ext_func)
         self.add_extension_btn.pack(pady = 5)
         # 颜色样式
-        self.set_color_style_label = tk.Label(self,text = "设置颜色样式",width = 24,height = 2,**static_data["shape-style"]["label-style"])
+        self.color_style_frame = tk.Frame(self.main_frame)
+        self.color_style_frame.pack(side = "right",fill = "y",padx = 18)
+        self.set_color_style_label = tk.Label(self.color_style_frame,text = "设置颜色样式",width = 24,height = 2,**static_data["shape-style"]["label-style"])
         self.set_color_style_label.pack(pady = 5)
         self.set_color_style_var = tk.StringVar()
         self.set_color_style_radius = list[tk.Radiobutton]()
         for i in static_data["color-styles"]:
-            self.set_color_style_radius.append(tk.Radiobutton(self,text = i[1],variable = self.set_color_style_var,value = i[0],command = self.set_color(i[0])))
+            self.set_color_style_radius.append(tk.Radiobutton(self.color_style_frame,text = i[1],variable = self.set_color_style_var,value = i[0],command = self.set_color(i[0])))
             if i[0] == static_data["color-style-name"]:
                 self.set_color_style_radius[-1].select()
             self.set_color_style_radius[-1].pack(pady = 5)
