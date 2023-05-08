@@ -6,7 +6,7 @@ from tkinter.filedialog import askopenfilename
 
 from .static import ARR,static_data,refresh_color
 from .map import Map
-from .extension import Extension
+from .extension import Extension,ExtensionManager
 
 class MainWindow(tk.Tk):
     def __init__(self,app_api:dict,debug:bool):
@@ -25,6 +25,12 @@ class MainWindow(tk.Tk):
         self.get_map_btn.pack(side = "left",padx = 5)
         self.refresh_map_btn = tk.Button(self.map_btn_frame,text = "刷新地图",width = 15,height = 2,**static_data["shape-style"]["btn-style"],command = self.app_api["refresh_map"])
         self.refresh_map_btn.pack(side = "right",padx = 5)
+        self.extension_label = tk.Label(self,text = "暂无扩展",width = 60,**static_data["shape-style"]["label-style"])
+        self.extension_label.pack(pady = 5)
+        self.set_extension_btn = tk.Button(self,text = "设置扩展",width = 15,height = 2,**static_data["shape-style"]["btn-style"],command = self.app_api["setting"])
+        self.set_extension_btn.pack(pady = 5)
+
+        self.refresh_extension()
         self.init_menu()
 
     # 初始化菜单栏
@@ -51,7 +57,7 @@ class MainWindow(tk.Tk):
         self.help_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "帮助(H)",underline = 3,menu = self.help_menu)
         self.help_menu.add_command(label = "精班棋文档",command = self.open_url("https://github.com/amf14151/s27a_jbq/README.md"))
-        self.help_menu.add_command(label = "浏览扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/README.md#扩展"))
+        self.help_menu.add_command(label = "浏览扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/extensions"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label = "反馈",command = self.open_url("https://github.com/amf14151/s27a_jbq"))
         self.help_menu.add_separator()
@@ -64,6 +70,10 @@ class MainWindow(tk.Tk):
     def choose_extension_file(self):
         filename = askopenfilename(filetypes = [("Python Files","*.py"),("All Files","*.*")],title = "选择扩展文件")
         return filename
+
+    def refresh_extension(self):
+        ext = "\n".join([i.text() if i.use else i.text() + "(未启用)" for i in ExtensionManager.Ext.extensions])
+        self.extension_label["text"] = f"当前已添加扩展：\n{ext}"
 
     def set_map(self,filename:str):
         self.map_label["text"] = f"当前地图: \n{filename}"
@@ -108,7 +118,9 @@ class GameWindow(tk.Tk):
         info = ""
         for i in rules:
             info += f"{rules[i]}：{'是' if self.map_data.rules[i] else '否'}\n"
-        showinfo("特殊规则",info[:-1])
+        exts = "\n    ".join([i.text() for i in ExtensionManager.Ext.extensions if i.use])
+        info += f"当前已启用扩展：\n    {exts if exts else '当前未启用扩展'}"
+        showinfo("特殊规则",info)
 
     #反方棋盘渲染反转横纵坐标
     def getx(self,x:int):
@@ -164,7 +176,7 @@ class GameWindow(tk.Tk):
                 self.chess_btn[i][j]["bg"] = static_data["colors"]["chess-bg"]
 
 class SettingWindow(tk.Tk):
-    def __init__(self,add_ext_func):
+    def __init__(self,add_ext_func,refresh_ext_func):
         super().__init__()
         self.title("设置")
         self.geometry("480x360")
@@ -176,10 +188,12 @@ class SettingWindow(tk.Tk):
         self.extension_frame.pack(side = "left",fill = "y",padx = 18)
         self.extension_label = tk.Label(self.extension_frame,text = "已加载扩展",width = 24,height = 2,**static_data["shape-style"]["label-style"])
         self.extension_label.pack(pady = 5)
-        self.extension_labels = list[tk.Label]()
-        for i in Extension.Ext.extensions:
-            self.extension_labels.append(tk.Label(self.extension_frame,text = i,width = 20,height = 1,**static_data["shape-style"]["label-style"]))
-            self.extension_labels[-1].pack(pady = 5)
+        self.extension_btns = list[tk.Button]()
+        for i in ExtensionManager.Ext.extensions:
+            self.extension_btns.append(tk.Button(self.extension_frame,text = i.text(),width = 20,**static_data["shape-style"]["btn-style"]))
+            self.extension_btns[-1]["bg"] = "lightgreen" if i.use else "pink"
+            self.extension_btns[-1]["command"] = self.use_extension(self.extension_btns[-1],i,refresh_ext_func)
+            self.extension_btns[-1].pack(pady = 5)
         self.add_extension_btn = tk.Button(self.extension_frame,text = "添加扩展",width = 16,height = 2,**static_data["shape-style"]["btn-style"],command = add_ext_func)
         self.add_extension_btn.pack(pady = 5)
         # 颜色样式
@@ -194,6 +208,13 @@ class SettingWindow(tk.Tk):
             if i[0] == static_data["color-style-name"]:
                 self.set_color_style_radius[-1].select()
             self.set_color_style_radius[-1].pack(pady = 5)
+
+    def use_extension(self,button:tk.Button,extension:Extension,refresh_ext_func):
+        def wrapper():
+            extension.use = not extension.use
+            button["bg"] = "lightgreen" if extension.use else "pink"
+            refresh_ext_func()
+        return wrapper
 
     def set_color(self,value:str):
         return lambda:refresh_color(value)

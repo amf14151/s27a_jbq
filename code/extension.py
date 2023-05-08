@@ -27,18 +27,28 @@ class ExtAPI:
         return self.app.map_data.get_chess_arr_by_id(id)
 
 class Extension:
+    def __init__(self,methods:dict[str]):
+        self.name = methods["EX_NAME"]
+        self.version = methods["EX_VERSION"]
+        self.use = True
+        self.loc_rules = methods.get("loc_rules",{})
+        self.check_can_go = methods.get("check_can_go",None)
+        self.after_move = methods.get("after_move",None)
+
+    def text(self):
+        return f"{self.name}-{self.version}"
+
+class ExtensionManager:
     PATH = "extensions"
     def __init__(self,app):
-        self.app = app
-        self.api = ExtAPI(app)
-        self.extensions = dict[str,dict]()
-        self.loc_rules = dict[str]()
-        self.check_can_go_funcs = []
-        if not os.path.exists(Extension.PATH):
+        self.debug = app.debug
+        self.extapi = ExtAPI(app)
+        self.extensions = list[Extension]()
+        ExtensionManager.Ext = self # 全局变量
+        if not os.path.exists(ExtensionManager.PATH):
             return
-        for i in os.listdir(Extension.PATH):
-            self.load_extension(os.path.join(Extension.PATH,i))
-        Extension.Ext = self # 全局变量
+        for i in os.listdir(ExtensionManager.PATH):
+            self.load_extension(os.path.join(ExtensionManager.PATH,i))
 
     def load_extension(self,filename:str):
         def wrapper():
@@ -47,14 +57,9 @@ class Extension:
             with open(filename,encoding = "utf-8") as rfile:
                 data = rfile.read()
             local = {}
-            exec(data,{"JBQ":self.api},local)
-            name = local["EX_NAME"]
-            self.extensions[name] = local
-            self.loc_rules.update(local.get("loc_rules",{}))
-            cf = local.get("check_can_go",None)
-            if cf:
-                self.check_can_go_funcs.append(cf)
-        if self.app.debug:
+            exec(data,{"JBQ":self.extapi},local)
+            self.extensions.append(Extension(local))
+        if self.debug:
             wrapper()
         else:
             try:
@@ -67,11 +72,45 @@ class Extension:
     def add_extension(self,filename:str):
         if os.path.splitext(filename)[1] != ".py":
             return
-        new_path = os.path.join(Extension.PATH,os.path.split(filename)[-1])
+        new_path = os.path.join(ExtensionManager.PATH,os.path.split(filename)[-1])
         shutil.copy(filename,new_path)
         self.load_extension(new_path)
 
-    def check_can_go(self,can_go:list[ARR],chess,arr:ARR):
-        for i in self.check_can_go_funcs:
-            can_go = i(can_go,chess,arr)
+    @property
+    def loc_rules(self):
+        loc_rules = {}
+        for i in self.extensions:
+            if not i.use:
+                continue
+            loc_rules.update(i.loc_rules)
+        return loc_rules
+
+    def check_can_go(self,can_go:list[list[ARR]],chess,arr:ARR):
+        for i in self.extensions:
+            if not i.use:
+                continue
+            if not i.check_can_go:
+                continue
+            if self.debug:
+                can_go = i.check_can_go(can_go,chess,arr)
+            else:
+                try:
+                    can_go = i.check_can_go(can_go,chess,arr)
+                except:
+                    pass
+            can_go = [j for j in can_go if j]
         return can_go
+
+    def after_move(self,arr1:ARR,arr2:ARR):
+        for i in self.extensions:
+            if not i.use:
+                continue
+            if not i.after_move:
+                continue
+            if self.debug:
+                i.after_move(arr1,arr2)
+            else:
+                try:
+                    i.after_move(arr1,arr2)
+                except:
+                    pass

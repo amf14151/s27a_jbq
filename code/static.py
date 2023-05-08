@@ -87,7 +87,7 @@ class MapViewer:
             move = [MapViewer.parse_move(k) for k in str(rd[4].value).split(";")]
             tran_con = MapViewer.parse_location(rd[5].value)
             tran_move = [MapViewer.parse_move(k) for k in str(rd[6].value).split(";")]
-            if len(move) != 2 or len(tran_move) != 2:
+            if len(move) < 2 or len(tran_move) < 2:
                 raise TypeError
             chesses.append([name,belong,is_captain,move,tran_con,tran_move])
         # 处理地图

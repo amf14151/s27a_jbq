@@ -1,5 +1,5 @@
 from .static import ARR,static_data
-from .extension import Extension
+from .extension import ExtensionManager
 
 class Chess:
     def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],map_data,win_func):
@@ -164,11 +164,11 @@ class Map:
                     if arr[1] == get_abs_pos(j,self.cl):
                         return True
             elif command == "P": # 函数P（点）
-                if arr == [get_abs_pos(i[1],self.rl),get_abs_pos(i[2],self.cl)]:
+                if arr == (get_abs_pos(i[1],self.rl),get_abs_pos(i[2],self.cl)):
                     return True
-            for j in Extension.Ext.loc_rules: # 扩展中的函数
+            for j in ExtensionManager.Ext.loc_rules: # 扩展中的函数
                 if command == j:
-                    if Extension.Ext.loc_rules[j](i[1:],arr):
+                    if ExtensionManager.Ext.loc_rules[j](i[1:],arr):
                         return True
         return False
 

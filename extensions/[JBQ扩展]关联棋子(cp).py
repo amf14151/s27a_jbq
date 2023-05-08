@@ -52,7 +52,8 @@ def R(args:tuple[int],arr:tuple[int,int]): # 函数R[i|t|d|r1|r2|...]（相对�
 def T(args:tuple[int],arr:tuple[int,int]): # 函数T[i]（多个、已死亡）
     return not JBQ.get_chess_arr_by_id(args[0])
                 
-EX_NAME = "关联棋子-2.1"
+EX_NAME = "关联棋子"
+EX_VERSION = "2.1"
 
 loc_rules = {
     "D":D,

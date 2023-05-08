@@ -4,12 +4,12 @@ if sys.platform != "win32":
     sys.stdout("程序必须在Windows系统中运行")
     sys.exit()
 
-from tkinter.messagebox import showinfo,showwarning
+from tkinter.messagebox import showinfo,showwarning,showerror
 
 from .static import xlrd,ARR,MapViewer,static_data
 from .map import Chess,Map
 from .window import MainWindow,GameWindow,SettingWindow
-from .extension import Extension
+from .extension import ExtensionManager
 from .online import OnlineConn
 
 class App:
@@ -20,7 +20,7 @@ class App:
     def run(self,debug:bool = False):
         self.debug = debug
         self.conn = OnlineConn(self)
-        self.extension = Extension(self)
+        self.extension_manager = ExtensionManager(self)
         self.window = MainWindow({
             # 主窗口调用的函数
             "get_map":self.get_map,
@@ -62,17 +62,25 @@ class App:
         if not self.map_data:
             showinfo("提示","暂未选择地图")
             return
-        game = Game(self.map_data,self.conn if online else None)
         self.window.withdraw()
-        game.start()
+        if self.debug:
+            game = Game(self.map_data,self.conn if online else None)
+            game.start()
+        else:
+            try:
+                game = Game(self.map_data,self.conn if online else None)
+                game.start()
+            except Exception as e:
+                showerror("错误",f"游戏运行错误：{e}")
         self.window.deiconify()
 
     def add_extension(self):
         filename = self.window.choose_extension_file()
-        self.extension.add_extension(filename)
+        self.extension_manager.add_extension(filename)
+        self.window.refresh_extension()
 
     def setting(self):
-        setting_window = SettingWindow(self.add_extension)
+        setting_window = SettingWindow(self.add_extension,self.window.refresh_extension)
         setting_window.mainloop()
 
 # 游戏类
@@ -84,6 +92,8 @@ class Game:
         self.map_data.init_chessboard(self.win)
         self.red_window = GameWindow(1,self.map_data,self.click_func,self.get_info,self.stop)
         self.blue_window = GameWindow(2,self.map_data,self.click_func,self.get_info,self.stop)
+        ExtensionManager.Ext.extapi.win = lambda belong:self.win(1 if belong == 2 else 2) # 反向（说明见win函数）
+        ExtensionManager.Ext.extapi.stalemate = self.stalemate
         if self.online_conn:
             if self.online_conn.belong == 1: # 红方
                 self.online_conn.bind(self.blue_window)
@@ -96,7 +106,7 @@ class Game:
         self.chosen = None
         self.red_window.set_text("turn",1)
         self.blue_window.set_text("turn",1)
-        Extension.Ext.api.turn = 1
+        ExtensionManager.Ext.extapi.turn = 1
         while self.running:
             self.red_window.update()
             self.blue_window.update()
@@ -111,6 +121,8 @@ class Game:
         if self.chosen: # 是否已经选择棋子
             if arr in self.chosen[1]:
                 self.map_data.move(self.chosen[0],arr,self.turn)
+                # 刚移动后的扩展调用
+                ExtensionManager.Ext.after_move(self.chosen[0],arr)
                 # 将军检测
                 can_go = list[ARR]()
                 cap_arr = list[ARR]()
@@ -133,7 +145,7 @@ class Game:
                 self.turn = 1 if self.turn == 2 else 2
                 self.red_window.set_text("turn",self.turn)
                 self.blue_window.set_text("turn",self.turn)
-                Extension.Ext.api.turn = self.turn
+                ExtensionManager.Ext.extapi.turn = self.turn
                 self.red_window.refresh_map()
                 self.blue_window.refresh_map()
             else:
@@ -151,23 +163,22 @@ class Game:
                 elif self.turn == 2 and self.map_data.blue_move_ne == 2:
                     return
             can_go = self.get_can_go(chess,arr)
-            # 载入扩展修改can_go
-            can_go = Extension.Ext.check_can_go(can_go,chess,arr)
             if can_go:
                 self.chosen = [arr,can_go]
                 window.choose(can_go)
 
     # 返回当前棋子可以行走的格子
     def get_can_go(self,chess:Chess,arr:ARR):
-        can_go = list[ARR]()
+        can_go = list[list[ARR]]()
         for i in chess.now_move[0]: # 行走一格
             d_arr = self.map_data.get_arr_by_rd(arr,i,1)
             if not d_arr:
                 continue
             mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
             if (not mp) or (chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn):
-                can_go.append(d_arr)
+                can_go.append([d_arr])
         for i in chess.now_move[1]:
+            can_go.append([])
             k = 1
             while True:
                 d_arr = self.map_data.get_arr_by_rd(arr,i,k)
@@ -175,14 +186,21 @@ class Game:
                     break
                 mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
                 if not mp: # 空格，继续向远处搜索
-                    can_go.append(d_arr)
+                    can_go[-1].append(d_arr)
                 elif chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn:
-                    can_go.append(d_arr)
+                    can_go[-1].append(d_arr)
                     break
                 else:
                     break
                 k += 1
-        return can_go
+            if not can_go[-1]:
+                del can_go[-1]
+        can_go = ExtensionManager.Ext.check_can_go(can_go,chess,arr) # 载入扩展修改can_go
+        new_can_go = list[ARR]()
+        for i in can_go:
+            for j in i:
+                new_can_go.append(j)
+        return new_can_go
 
     # 显示棋子基本信息
     def get_info(self,arr:ARR):
@@ -191,7 +209,13 @@ class Game:
             showinfo("棋子信息",chess.info)
 
     def win(self,belong:int):
-        showinfo("提示",("红方" if belong == 2 else "蓝方") + "胜利") # 由于被吃棋子发送回调，所以belong相反
+        showinfo("提示",f"{'红方' if belong == 2 else '蓝方'}胜利") # 由于被吃棋子发送回调，所以belong相反
+        self.stop()
+
+    # 和棋
+    # 只能由扩展触发
+    def stalemate(self):
+        showinfo("提示","双方和棋")
         self.stop()
 
     def stop(self):
