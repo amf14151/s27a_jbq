@@ -1,8 +1,12 @@
+import copy
+
+from tkinter.messagebox import showinfo
+
 from .static import ARR,static_data
 from .extension import ExtensionManager
 
 class Chess:
-    def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],map_data,win_func):
+    def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],map_data):
         self.id = id
         self.name = name
         self.belong = belong
@@ -11,7 +15,6 @@ class Chess:
         self.tran_con = tran_con
         self.tran_move = tran_move
         self.map_data = map_data
-        self.win_func = win_func
         self.is_tran = False
 
     # 当前可移动位置
@@ -81,11 +84,6 @@ class Chess:
         info = f"名称：{self.name}\n编号：{self.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}\n目前可行走函数：{move}"
         return info
 
-    # 棋子被吃函数
-    def be_eaten(self):
-        if self.is_captain:
-            self.win_func(self.belong) # 败方发送胜利回调
-
     # 升变条件检测
     def tran(self,arr:ARR):
         if self.is_tran:
@@ -106,12 +104,13 @@ class Map:
     # 初始化棋盘
     # 每局初始化一次
     def init_chessboard(self,win_func):
+        self.win = win_func
         self.chessboard = list[list[Chess]]()
         for i in self.map:
             self.chessboard.append([])
             for j in i:
                 if j:
-                    self.chessboard[-1].append(Chess(j,*self.chesses[j - 1],self,win_func))
+                    self.chessboard[-1].append(Chess(j,*self.chesses[j - 1],self))
                 else:
                     self.chessboard[-1].append(None)
 
@@ -184,8 +183,39 @@ class Map:
                 self.red_move_ne = 0
             else:
                 self.blue_move_ne = 0
-        if self.chessboard[arr2[0]][arr2[1]]:
-            self.chessboard[arr2[0]][arr2[1]].be_eaten()
+        if self.chessboard[arr2[0]][arr2[1]] and self.chessboard[arr2[0]][arr2[1]].is_captain:
+            self.win(turn)
         self.chessboard[arr1[0]][arr1[1]],self.chessboard[arr2[0]][arr2[1]] = None,self.chessboard[arr1[0]][arr1[1]]
         if self.rules["tran"]:
             self.chessboard[arr2[0]][arr2[1]].tran(arr2)
+
+class HistoryRecorder:
+    def __init__(self,map_data:Map):
+        self.history = list[tuple[list[list[Chess]],str]]()
+        self.history.append((self.copy_chessboard(map_data.chessboard),1)) # 初始也在其中，走完后立即add
+        self.now = 1 # 当前位置（不含）
+
+    @staticmethod
+    def copy_chessboard(chessboard:list[list[Chess]]):
+        new_chessboard = list[list[Chess]]()
+        for i in chessboard:
+            new_chessboard.append([])
+            for j in i:
+                if j:
+                    new_chessboard[-1].append(copy.copy(j))
+                else:
+                    new_chessboard[-1].append(None)
+        return new_chessboard
+
+    def add_history(self,map_data:Map,turn:str):
+        del self.history[self.now:]
+        self.history.append((self.copy_chessboard(map_data.chessboard),turn))
+        self.now += 1
+
+    def rollback(self,steps:int): # steps可以是负数（撤销）
+        if self.now - steps < 1 or self.now - steps > len(self.history):
+            showinfo("提示","操作失败")
+            return
+        self.now -= steps
+        data = self.history[self.now - 1]
+        return (self.copy_chessboard(data[0]),data[1])

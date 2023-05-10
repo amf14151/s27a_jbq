@@ -56,7 +56,7 @@ class MainWindow(tk.Tk):
         # 帮助菜单
         self.help_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "帮助(H)",underline = 3,menu = self.help_menu)
-        self.help_menu.add_command(label = "精班棋文档",command = self.open_url("https://github.com/amf14151/s27a_jbq/README.md"))
+        self.help_menu.add_command(label = "精班棋文档",command = self.open_url("https://github.com/amf14151/s27a_jbq/blob/main/README.md"))
         self.help_menu.add_command(label = "浏览扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/extensions"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label = "反馈",command = self.open_url("https://github.com/amf14151/s27a_jbq"))
@@ -85,29 +85,29 @@ class MainWindow(tk.Tk):
         showinfo("关于精班棋",static_data["about"].format(static_data["VERSION"]))
 
 class GameWindow(tk.Tk):
-    def __init__(self,belong:int,map_data:Map,click_func,info_func,stop_func):
+    def __init__(self,belong:int,map_data:Map,game_api:dict):
         super().__init__()
         self.belong = belong
         self.map_data = map_data
-        self.click_func = click_func
-        self.info_func = info_func
+        self.game_api = game_api
         self.title("红方" if self.belong == 1 else "蓝方")
         self.resizable(width = False,height = False)
-        self.protocol("WM_DELETE_WINDOW",stop_func)
-        self.init_menu(str,stop_func)
+        self.protocol("WM_DELETE_WINDOW",self.game_api["stop"])
+        self.init_menu()
         self.init_chessboard()
         self.refresh_map()
 
     # 初始化菜单栏
-    def init_menu(self,back_func,stop_func):
+    def init_menu(self):
         self.menu = tk.Menu(self)
         self.config(menu = self.menu)
         self.menu.add_command(label = "查看地图信息",command = self.map_info)
         if False:
             self.menu.add_command(label = "查看当前房间")
         elif self.map_data.rules["back"]: # 仅在单人模式下生效
-            self.menu.add_command(label = "悔棋",command = back_func)
-        self.menu.add_command(label = "退出游戏",command = stop_func)
+            self.menu.add_command(label = "悔棋",command = lambda:self.game_api["back"](1))
+            self.menu.add_command(label = "撤销悔棋",command = lambda:self.game_api["back"](-1))
+        self.menu.add_command(label = "退出游戏",command = self.game_api["stop"])
 
     def map_info(self):
         rules = {
@@ -148,14 +148,14 @@ class GameWindow(tk.Tk):
     def click(self,x:int,y:int,info:bool = False):
         def wrapper(event = None):
             if info:
-                self.info_func((self.getx(x),self.gety(y)))
+                self.game_api["info"]((self.getx(x),self.gety(y)))
             else:
-                self.click_func((self.getx(x),self.gety(y)),self.belong)
+                self.game_api["click"]((self.getx(x),self.gety(y)),self.belong)
         return wrapper
 
-    def set_text(self,type:str,fro:int):
+    def set_text(self,type:str,fro:int,turn:tuple = None):
         if type == "turn": # 设置回合
-            self.turn_label["text"] = f"{'己方' if fro == self.belong else '对方'}回合"
+            self.turn_label["text"] = f"{'己方' if fro == self.belong else '对方'}回合\n回合数：{turn[0]}/{turn[1]}"
         elif type == "mess": # 设置将军
             self.mess_label["text"] = f"{'红方' if fro == 1 else '蓝方'}将军！" if fro else ""
 

@@ -7,19 +7,18 @@ if sys.platform != "win32":
 from tkinter.messagebox import showinfo,showwarning,showerror
 
 from .static import xlrd,ARR,MapViewer,static_data
-from .map import Chess,Map
+from .map import Chess,Map,HistoryRecorder
 from .window import MainWindow,GameWindow,SettingWindow
-from .extension import ExtensionManager
-from .online import OnlineConn
+from .extension import ExtAPI,ExtensionManager
 
 class App:
-    def __init__(self):
+    def __init__(self,record_path:str = None):
         self.map_data = None
         self.map_path = None
+        self.record_path = record_path
 
     def run(self,debug:bool = False):
         self.debug = debug
-        self.conn = OnlineConn(self)
         self.extension_manager = ExtensionManager(self)
         self.window = MainWindow({
             # 主窗口调用的函数
@@ -58,17 +57,17 @@ class App:
         self.map_path = filename
         self.window.set_map(self.map_path)
 
-    def start_game(self,online:bool = False):
+    def start_game(self):
         if not self.map_data:
             showinfo("提示","暂未选择地图")
             return
         self.window.withdraw()
         if self.debug:
-            game = Game(self.map_data,self.conn if online else None)
+            game = Game(self.map_data,self.record_path)
             game.start()
         else:
             try:
-                game = Game(self.map_data,self.conn if online else None)
+                game = Game(self.map_data,self.record_path)
                 game.start()
             except Exception as e:
                 showerror("错误",f"游戏运行错误：{e}")
@@ -86,35 +85,43 @@ class App:
 # 游戏类
 # 每场创建一个新的Game对象
 class Game:
-    def __init__(self,map_data:Map,online_conn:OnlineConn = None):
+    def __init__(self,map_data:Map,record_path:str):
         self.map_data = map_data
-        self.online_conn = online_conn
+        self.record_path = record_path
         self.map_data.init_chessboard(self.win)
-        self.red_window = GameWindow(1,self.map_data,self.click_func,self.get_info,self.stop)
-        self.blue_window = GameWindow(2,self.map_data,self.click_func,self.get_info,self.stop)
-        ExtensionManager.Ext.extapi.win = lambda belong:self.win(1 if belong == 2 else 2) # 反向（说明见win函数）
-        ExtensionManager.Ext.extapi.stalemate = self.stalemate
-        if self.online_conn:
-            if self.online_conn.belong == 1: # 红方
-                self.online_conn.bind(self.blue_window)
-            else:
-                self.online_conn.bind(self.red_window)
+        self.history_recorder = HistoryRecorder(self.map_data)
+        game_api = {
+            "click":self.click,
+            "info":self.get_info,
+            "back":self.back,
+            "stop":self.stop
+        }
+        self.red_window = GameWindow(1,self.map_data,game_api)
+        self.blue_window = GameWindow(2,self.map_data,game_api)
+        ExtAPI.win = self.win
+        ExtAPI.stalemate = self.stalemate
 
     def start(self):
         self.running = True
         self.turn = 1
         self.chosen = None
-        self.red_window.set_text("turn",1)
-        self.blue_window.set_text("turn",1)
-        ExtensionManager.Ext.extapi.turn = 1
+        self.refresh()
         while self.running:
             self.red_window.update()
             self.blue_window.update()
         self.red_window.destroy()
         self.blue_window.destroy()
 
+    def refresh(self):
+        turn = (self.history_recorder.now,len(self.history_recorder.history))
+        self.red_window.set_text("turn",self.turn,turn)
+        self.blue_window.set_text("turn",self.turn,turn)
+        ExtAPI.turn = self.turn
+        self.red_window.refresh_map()
+        self.blue_window.refresh_map()
+
     # 游戏窗口点击棋子的回调函数
-    def click_func(self,arr:ARR,belong:int):
+    def click(self,arr:ARR,belong:int):
         if belong != self.turn:
             return
         window = self.red_window if belong == 1 else self.blue_window
@@ -143,11 +150,8 @@ class Game:
                 self.red_window.set_text("mess",self.turn if mess else 0)
                 self.blue_window.set_text("mess",self.turn if mess else 0)
                 self.turn = 1 if self.turn == 2 else 2
-                self.red_window.set_text("turn",self.turn)
-                self.blue_window.set_text("turn",self.turn)
-                ExtensionManager.Ext.extapi.turn = self.turn
-                self.red_window.refresh_map()
-                self.blue_window.refresh_map()
+                self.history_recorder.add_history(self.map_data,self.turn)
+                self.refresh()
             else:
                 window.choose(self.chosen[1],remove = True)
             self.chosen = None
@@ -208,8 +212,15 @@ class Game:
         if chess:
             showinfo("棋子信息",chess.info)
 
-    def win(self,belong:int):
-        showinfo("提示",f"{'红方' if belong == 2 else '蓝方'}胜利") # 由于被吃棋子发送回调，所以belong相反
+    # 悔棋及撤销
+    def back(self,steps:int):
+        data = self.history_recorder.rollback(steps)
+        if data:
+            self.map_data.chessboard,self.turn = data
+            self.refresh()
+
+    def win(self,turn:int):
+        showinfo("提示",f"{'红方' if turn == 1 else '蓝方'}胜利")
         self.stop()
 
     # 和棋
@@ -219,4 +230,12 @@ class Game:
         self.stop()
 
     def stop(self):
+        if self.record_path:
+            # 记录棋局
+            with open(self.record_path,"w",encoding = "utf-8") as wfile:
+                for i in self.history_recorder.history:
+                    print_chessboard = "\n".join([" ".join([k.name if k else "  " for k in j]) for j in i[0]])
+                    wfile.write("—" * 30 + "\n")
+                    wfile.write(print_chessboard + "\n")
+                wfile.write("—" * 30)
         self.running = False

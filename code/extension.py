@@ -64,7 +64,7 @@ class ExtensionManager:
         else:
             try:
                 wrapper()
-            except KeyError:
+            except:
                 res = askyesno("提示",f"扩展{filename}格式错误，是否删除此扩展？")
                 if res:
                     os.remove(filename)
