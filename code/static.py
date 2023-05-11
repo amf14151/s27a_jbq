@@ -55,9 +55,9 @@ class MapViewer:
     @staticmethod
     def parse_move(data:str):
         """
-        1(y:1&y:2),2(y:3&y:4),3
+        1(Y[1|2]),2(Y[3|4]),3
         ->
-        [(1,[('y',1),('y',2)]),(2,[('y',3),('y',4)]),(3,)]
+        [(1,[('Y',1,2)]),(2,[('Y',3,4)]),(3,)]
         """
         data = data.split(",")
         move = list[tuple]()
@@ -79,6 +79,7 @@ class MapViewer:
         # 处理棋子
         chesses_xs = xs.sheet_by_name("chesses")
         chesses = []
+        title = chesses_xs.row(0)
         for i in range(chesses_xs.nrows - 1):
             rd = chesses_xs.row(i + 1)
             name = str(rd[1].value)
@@ -87,9 +88,10 @@ class MapViewer:
             move = [MapViewer.parse_move(k) for k in str(rd[4].value).split(";")]
             tran_con = MapViewer.parse_location(rd[5].value)
             tran_move = [MapViewer.parse_move(k) for k in str(rd[6].value).split(";")]
+            attr = dict([(title[j + 7].value,k.value) for j,k in enumerate(rd[7:])])
             if len(move) < 2 or len(tran_move) < 2:
                 raise TypeError
-            chesses.append([name,belong,is_captain,move,tran_con,tran_move])
+            chesses.append([name,belong,is_captain,move,tran_con,tran_move,attr])
         # 处理地图
         map_xs = xs.sheet_by_name("map")
         map = []

@@ -26,6 +26,9 @@ class ExtAPI:
     def get_chess_arr_by_id(self,id:int):
         return self.app.map_data.get_chess_arr_by_id(id)
 
+    def move(self,arr1:ARR,arr2:ARR):
+        return self.app.map_data.move(arr1,arr2,self.turn)
+
 class Extension:
     def __init__(self,methods:dict[str]):
         self.name = methods["EX_NAME"]

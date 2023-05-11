@@ -25,8 +25,6 @@ class App:
             "get_map":self.get_map,
             "refresh_map":lambda:self.get_map(self.map_path,success_prompt = True),
             "start_game":self.start_game,
-            "create_room":self.conn.create,
-            "enter_room":self.conn.enter,
             "setting":self.setting
         },self.debug)
         if static_data["lastly-load-map"]:

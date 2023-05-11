@@ -62,3 +62,7 @@ def after_move(arr1,arr2):
                 if k.name == "将":
                     if chesses[j + 1].name == "帅":
                         JBQ.win(1 if JBQ.turn == 2 else 2)
+
+HELP = """
+中国象棋还原版，请使用 https://github.com/amf14151/s27a_jbq/blob/main/map/中国象棋.xlsx 地图
+"""

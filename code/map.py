@@ -6,7 +6,7 @@ from .static import ARR,static_data
 from .extension import ExtensionManager
 
 class Chess:
-    def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],map_data):
+    def __init__(self,id:int,name:str,belong:int,is_captain:bool,move:list[list[tuple]],tran_con:list[tuple],tran_move:list[list[tuple]],attr:dict[str],map_data):
         self.id = id
         self.name = name
         self.belong = belong
@@ -14,6 +14,7 @@ class Chess:
         self.move = move
         self.tran_con = tran_con
         self.tran_move = tran_move
+        self.attr = copy.copy(attr) # 每个棋子都有独特的attr
         self.map_data = map_data
         self.is_tran = False
 
@@ -81,7 +82,7 @@ class Chess:
         is_captain = "是" if self.is_captain else "否"
         is_tran = ("是" if self.is_tran else "否") if self.tran_con else "无法升变"
         move = self.tran_move if self.is_tran else self.move
-        info = f"名称：{self.name}\n编号：{self.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}\n目前可行走函数：{move}"
+        info = f"名称：{self.name}\n编号：{self.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}\n其他参数：{self.attr}\n目前可行走函数：{move}"
         return info
 
     # 升变条件检测
@@ -183,7 +184,7 @@ class Map:
                 self.red_move_ne = 0
             else:
                 self.blue_move_ne = 0
-        if self.chessboard[arr2[0]][arr2[1]] and self.chessboard[arr2[0]][arr2[1]].is_captain:
+        if arr1 != arr2 and self.chessboard[arr2[0]][arr2[1]] and self.chessboard[arr2[0]][arr2[1]].is_captain:
             self.win(turn)
         self.chessboard[arr1[0]][arr1[1]],self.chessboard[arr2[0]][arr2[1]] = None,self.chessboard[arr1[0]][arr1[1]]
         if self.rules["tran"]:

@@ -50,9 +50,6 @@ class MainWindow(tk.Tk):
         self.game_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "游戏(G)",underline = 3,menu = self.game_menu)
         self.game_menu.add_command(label = "单人游戏",command = self.app_api["start_game"])
-        self.game_menu.add_separator()
-        self.game_menu.add_command(label = "新建对局",command = self.app_api["create_room"])
-        self.game_menu.add_command(label = "加入对局",command = self.app_api["enter_room"])
         # 帮助菜单
         self.help_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "帮助(H)",underline = 3,menu = self.help_menu)
@@ -137,20 +134,20 @@ class GameWindow(tk.Tk):
         for i in range(self.map_data.rl):
             self.chess_btn.append([])
             for j in range(self.map_data.cl):
-                self.chess_btn[-1].append(tk.Button(self.chess_frame,height = 3,width = 8,relief = "flat",bd = 0,command = self.click(i,j)))
-                self.chess_btn[-1][-1].bind("<Button 3>",self.click(i,j,True))
+                self.chess_btn[-1].append(tk.Button(self.chess_frame,height = 3,width = 8,relief = "flat",bd = 0,command = self.click(i,j,1)))
+                self.chess_btn[-1][-1].bind("<Button 3>",self.click(i,j,3))
                 self.chess_btn[-1][-1].grid(row = i,column = j,padx = 1,pady = 1)
         self.chess_frame.pack()
         self.mess_label = tk.Label(self,height = 3,width = 24)
         self.mess_label.pack()
 
     # 点击棋子回调中转函数
-    def click(self,x:int,y:int,info:bool = False):
+    def click(self,x:int,y:int,key:int):
         def wrapper(event = None):
-            if info:
-                self.game_api["info"]((self.getx(x),self.gety(y)))
-            else:
+            if key == 1:
                 self.game_api["click"]((self.getx(x),self.gety(y)),self.belong)
+            else:
+                self.game_api["info"]((self.getx(x),self.gety(y)))
         return wrapper
 
     def set_text(self,type:str,fro:int,turn:tuple = None):
