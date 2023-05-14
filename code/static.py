@@ -19,8 +19,8 @@ if xlrd.__version__.startswith("2."):
     sys.exit()
 
 basepath = os.path.split(__file__)[0]
-static_path = os.path.join(basepath,"static.json")
-setting_path = os.path.join(basepath,"setting.json")
+static_path = os.path.join(basepath,"static.json.py")
+setting_path = "setting.json"
 
 ARR = tuple[int,int] # 棋子位置数组
 
@@ -82,13 +82,13 @@ class MapViewer:
         title = chesses_xs.row(0)
         for i in range(chesses_xs.nrows - 1):
             rd = chesses_xs.row(i + 1)
-            name = str(rd[1].value)
+            name = str(rd[1].value).strip('"')
             belong = int(rd[2].value)
             is_captain = rd[3].value == "c"
             move = [MapViewer.parse_move(k) for k in str(rd[4].value).split(";")]
             tran_con = MapViewer.parse_location(rd[5].value)
             tran_move = [MapViewer.parse_move(k) for k in str(rd[6].value).split(";")]
-            attr = dict([(title[j + 7].value,k.value) for j,k in enumerate(rd[7:])])
+            attr = dict([(title[j + 7].value,k.value) for j,k in enumerate(rd[7:]) if k.value])
             if len(move) < 2 or len(tran_move) < 2:
                 raise TypeError
             chesses.append([name,belong,is_captain,move,tran_con,tran_move,attr])
@@ -121,7 +121,8 @@ def load_data():
     else:
         setting = {
             "color-styles":"normal",
-            "lastly-load-map":""
+            "lastly-load-map":"",
+            "used-extensions":[]
         }
         write(setting_path,setting)
     static_data = {}
@@ -132,7 +133,17 @@ def load_data():
     static_data["colors"] = static["color-styles"][setting["color-styles"]]["colors"]
     static_data["shape-style"] = static["shape-style"]
     static_data["lastly-load-map"] = setting["lastly-load-map"]
+    static_data["used-extensions"] = setting["used-extensions"]
     return static_data
+
+def refresh_extension(extensions):
+    setting = load(setting_path)
+    setting["used-extensions"] = []
+    for i in extensions:
+        if i.use:
+            setting["used-extensions"].append(i.name)
+    write(setting_path,setting)
+    static_data["used-extensions"] = setting["used-extensions"]
 
 def refresh_color(value:str):
     setting = load(setting_path)

@@ -1,5 +1,5 @@
 EX_NAME = "盾牌与禁止"
-EX_VERSION = "1.1"
+EX_VERSION = "1.2"
 
 def check_can_go(can_go:list[list[tuple[int,int]]],chess,arr:tuple[int,int]):
     # 查找对方与中立方当前在场的所有盾牌与禁止
@@ -28,17 +28,17 @@ def check_can_go(can_go:list[list[tuple[int,int]]],chess,arr:tuple[int,int]):
                             pr2_arr.append(d_arr)
     new_can_go = list(can_go)
     for i,j in enumerate(can_go):
-        for k,l in enumerate(j):
-            w_chess = JBQ.get_chess_by_arr(l)
+        for k in j:
+            w_chess = JBQ.get_chess_by_arr(k)
             if w_chess and w_chess.belong != chess.belong: # 对方棋子
                 if arr in sh_arr: # 在盾牌范围内
-                    del new_can_go[i][k:]
+                    new_can_go[i] = []
                     break
-            elif arr in pr1_arr or l in pr1_arr:
-                del new_can_go[i][k:]
+            elif arr in pr1_arr or k in pr1_arr:
+                new_can_go[i] = []
                 break
-            elif l in pr2_arr:
-                del new_can_go[i][k:]
+            elif k in pr2_arr:
+                new_can_go[i] = []
                 break
     return new_can_go
 

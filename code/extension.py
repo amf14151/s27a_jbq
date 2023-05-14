@@ -3,7 +3,7 @@ import shutil
 
 from tkinter.messagebox import askyesno
 
-from .static import ARR
+from .static import ARR,static_data
 
 class ExtAPI:
     def __init__(self,app):
@@ -33,7 +33,7 @@ class Extension:
     def __init__(self,methods:dict[str]):
         self.name = methods["EX_NAME"]
         self.version = methods["EX_VERSION"]
-        self.use = True
+        self.use = self.name in static_data["used-extensions"]
         self.loc_rules = methods.get("loc_rules",{})
         self.check_can_go = methods.get("check_can_go",None)
         self.after_move = methods.get("after_move",None)
@@ -95,13 +95,16 @@ class ExtensionManager:
             if not i.check_can_go:
                 continue
             if self.debug:
-                can_go = i.check_can_go(can_go,chess,arr)
+                new_can_go = i.check_can_go(can_go,chess,arr)
+                if new_can_go == None:
+                    raise TypeError("check_can_go函数无返回值")
             else:
                 try:
-                    can_go = i.check_can_go(can_go,chess,arr)
+                    new_can_go = i.check_can_go(can_go,chess,arr)
                 except:
                     pass
-            can_go = [j for j in can_go if j]
+            if new_can_go != None:
+                can_go = [j for j in new_can_go if j]
         return can_go
 
     def after_move(self,arr1:ARR,arr2:ARR):

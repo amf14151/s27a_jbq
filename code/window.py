@@ -4,7 +4,7 @@ import webbrowser
 from tkinter.messagebox import showinfo
 from tkinter.filedialog import askopenfilename
 
-from .static import ARR,static_data,refresh_color
+from .static import ARR,static_data,refresh_extension,refresh_color
 from .map import Map
 from .extension import Extension,ExtensionManager
 
@@ -13,9 +13,9 @@ class MainWindow(tk.Tk):
         super().__init__()
         self.app_api = app_api
         self.title(f"精班棋 {static_data['VERSION']}{' [debug mode]' if debug else ''}")
-        self.geometry("480x360")
+        self.minsize(480,360)
         self.resizable(width = False,height = False)
-        self.start_btn = tk.Button(self,text = "单人游戏",width = 60,height = 3,**static_data["shape-style"]["btn-style"],command = self.app_api["start_game"])
+        self.start_btn = tk.Button(self,text = "开始游戏",width = 60,height = 3,**static_data["shape-style"]["btn-style"],command = self.app_api["start_game"])
         self.start_btn.pack(pady = 5)
         self.map_label = tk.Label(self,text = "暂未选择",width = 60,height = 3,**static_data["shape-style"]["label-style"])
         self.map_label.pack(pady = 5)
@@ -49,14 +49,15 @@ class MainWindow(tk.Tk):
         # 游戏菜单
         self.game_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "游戏(G)",underline = 3,menu = self.game_menu)
-        self.game_menu.add_command(label = "单人游戏",command = self.app_api["start_game"])
+        self.game_menu.add_command(label = "开始游戏",command = self.app_api["start_game"])
         # 帮助菜单
         self.help_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "帮助(H)",underline = 3,menu = self.help_menu)
         self.help_menu.add_command(label = "精班棋文档",command = self.open_url("https://github.com/amf14151/s27a_jbq/blob/main/README.md"))
-        self.help_menu.add_command(label = "浏览扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/extensions"))
+        self.help_menu.add_command(label = "获取扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/extensions"))
+        self.help_menu.add_command(label = "获取地图",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/map"))
         self.help_menu.add_separator()
-        self.help_menu.add_command(label = "反馈",command = self.open_url("https://github.com/amf14151/s27a_jbq"))
+        self.help_menu.add_command(label = "反馈",command = self.open_url("https://github.com/amf14151/s27a_jbq/issues"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label = "关于精班棋",command = self.show_about)
 
@@ -69,7 +70,8 @@ class MainWindow(tk.Tk):
         return filename
 
     def refresh_extension(self):
-        ext = "\n".join([i.text() if i.use else i.text() + "(未启用)" for i in ExtensionManager.Ext.extensions])
+        refresh_extension(ExtensionManager.Ext.extensions)
+        ext = "\n".join([(i.text() + ("" if i.use else "(未启用)")) for i in ExtensionManager.Ext.extensions])
         self.extension_label["text"] = f"当前已添加扩展：\n{ext}"
 
     def set_map(self,filename:str):
@@ -98,13 +100,23 @@ class GameWindow(tk.Tk):
     def init_menu(self):
         self.menu = tk.Menu(self)
         self.config(menu = self.menu)
-        self.menu.add_command(label = "查看地图信息",command = self.map_info)
+        # 游戏菜单
+        self.game_menu = tk.Menu(self.menu,tearoff = False)
+        self.menu.add_cascade(label = "游戏(G)",underline = 3,menu = self.game_menu)
+        self.game_menu.add_command(label = "查看地图信息",command = self.map_info)
+        self.game_menu.add_separator()
         if False:
-            self.menu.add_command(label = "查看当前房间")
-        elif self.map_data.rules["back"]: # 仅在单人模式下生效
-            self.menu.add_command(label = "悔棋",command = lambda:self.game_api["back"](1))
-            self.menu.add_command(label = "撤销悔棋",command = lambda:self.game_api["back"](-1))
-        self.menu.add_command(label = "退出游戏",command = self.game_api["stop"])
+            self.game_menu.add_command(label = "查看当前房间")
+            self.game_menu.add_separator()
+        self.game_menu.add_command(label = "退出游戏",accelerator = "Alt+F4",command = self.game_api["stop"])
+        # 功能菜单
+        self.func_menu = tk.Menu(self.menu,tearoff = False)
+        self.menu.add_cascade(label = "功能(F)",underline = 3,menu = self.func_menu)
+        if True and self.map_data.rules["back"]: # 仅在单人模式下生效
+            self.func_menu.add_command(label = "悔棋",command = lambda:self.game_api["back"](1))
+            self.func_menu.add_command(label = "撤销悔棋",command = lambda:self.game_api["back"](-1))
+            self.func_menu.add_separator()
+        self.func_menu.add_command(label = "切换棋子大小",command = self.change_chess_height)
 
     def map_info(self):
         rules = {
@@ -118,6 +130,16 @@ class GameWindow(tk.Tk):
         exts = "\n    ".join([i.text() for i in ExtensionManager.Ext.extensions if i.use])
         info += f"当前已启用扩展：\n    {exts if exts else '当前未启用扩展'}"
         showinfo("特殊规则",info)
+
+    def change_chess_height(self):
+        for i in self.chess_btn:
+            for j in i:
+                if j["height"] == 3: # 大棋子
+                    j["height"] = 2
+                    j["width"] = 5
+                else:
+                    j["height"] = 3
+                    j["width"] = 8
 
     #反方棋盘渲染反转横纵坐标
     def getx(self,x:int):
@@ -140,6 +162,8 @@ class GameWindow(tk.Tk):
         self.chess_frame.pack()
         self.mess_label = tk.Label(self,height = 3,width = 24)
         self.mess_label.pack()
+        if len(self.chess_btn) > 8 or len(self.chess_btn[0]) > 12:
+            self.change_chess_height()
 
     # 点击棋子回调中转函数
     def click(self,x:int,y:int,key:int):
@@ -176,7 +200,7 @@ class SettingWindow(tk.Tk):
     def __init__(self,add_ext_func,refresh_ext_func):
         super().__init__()
         self.title("设置")
-        self.geometry("480x360")
+        self.minsize(480,360)
         self.resizable(width = False,height = False)
         self.main_frame = tk.Frame(self) # 解决布局分布在两侧的问题
         self.main_frame.pack()

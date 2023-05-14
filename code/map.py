@@ -17,6 +17,20 @@ class Chess:
         self.attr = copy.copy(attr) # 每个棋子都有独特的attr
         self.map_data = map_data
         self.is_tran = False
+        self.get_name_space()
+
+    # 计算name前后的空格
+    def get_name_space(self):
+        self.attr["name_withspace"] = self.name
+        name_length = len(self.name.encode(encoding = "gbk"))
+        side = True # True为右侧
+        while name_length < 4:
+            if side:
+                self.attr["name_withspace"] += " "
+            else:
+                self.attr["name_withspace"] = " " + self.attr["name_withspace"]
+            side = not side
+            name_length += 1
 
     # 当前可移动位置
     @property
@@ -58,7 +72,7 @@ class Chess:
         text = list(text)
         if rev:
             text.reverse()
-        text.insert(12,self.name)
+        text.insert(12,self.attr["name_withspace"])
         text = "".join(text)
         # 设置字体颜色
         if self.belong == 1:

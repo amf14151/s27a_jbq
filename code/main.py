@@ -188,9 +188,9 @@ class Game:
                     break
                 mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
                 if not mp: # 空格，继续向远处搜索
-                    can_go[-1].append(d_arr)
+                    can_go.append(can_go[-1] + [d_arr])
                 elif chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn:
-                    can_go[-1].append(d_arr)
+                    can_go.append(can_go[-1] + [d_arr])
                     break
                 else:
                     break
@@ -198,11 +198,11 @@ class Game:
             if not can_go[-1]:
                 del can_go[-1]
         can_go = ExtensionManager.Ext.check_can_go(can_go,chess,arr) # 载入扩展修改can_go
-        new_can_go = list[ARR]()
+        new_can_go = set[ARR]() # 集合去重
         for i in can_go:
             for j in i:
-                new_can_go.append(j)
-        return new_can_go
+                new_can_go.add(j)
+        return list(new_can_go)
 
     # 显示棋子基本信息
     def get_info(self,arr:ARR):
@@ -232,7 +232,7 @@ class Game:
             # 记录棋局
             with open(self.record_path,"w",encoding = "utf-8") as wfile:
                 for i in self.history_recorder.history:
-                    print_chessboard = "\n".join([" ".join([k.name if k else "  " for k in j]) for j in i[0]])
+                    print_chessboard = "\n".join([" ".join([k.attr["name_withspace"] if k else " " * 4 for k in j]) for j in i[0]])
                     wfile.write("—" * 30 + "\n")
                     wfile.write(print_chessboard + "\n")
                 wfile.write("—" * 30)

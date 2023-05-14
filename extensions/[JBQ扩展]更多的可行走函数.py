@@ -1,4 +1,17 @@
-def D(args:tuple[int],arr:tuple[int,int]): # 函数D[i|t|d]（相对距离）
+def NP(args:tuple[int],arr:tuple[int,int]):
+    arrs = [args[i:i + 2] for i in range(0,len(args),2)]
+    return arr not in arrs
+
+def C(args:tuple[int],arr:tuple[int,int]):
+    number = 0
+    for i in range(JBQ.rl):
+        for j in range(JBQ.cl):
+            chess = JBQ.get_chess_by_arr((i,j))
+            if chess and (args[0] == 0 or args[0] == chess.id):
+                number += 1
+    return args[1] <= number <= args[2]
+
+def D(args:tuple[int],arr:tuple[int,int]):
     i_arr = JBQ.get_chess_arr_by_id(args[0]) # 相对棋子（cp）坐标
     if not i_arr:
         return False
@@ -11,7 +24,7 @@ def D(args:tuple[int],arr:tuple[int,int]): # 函数D[i|t|d]（相对距离）
         return True
     return False
 
-def R(args:tuple[int],arr:tuple[int,int]): # 函数R[i|t|d|r1|r2|...]（相对距离、方向）
+def R(args:tuple[int],arr:tuple[int,int]):
     i_arr = JBQ.get_chess_arr_by_id(args[0]) # 相对棋子（cp）坐标
     if not i_arr:
         return False
@@ -49,20 +62,24 @@ def R(args:tuple[int],arr:tuple[int,int]): # 函数R[i|t|d|r1|r2|...]（相对�
             dire = 8
     return dire in args[3:]
 
-def T(args:tuple[int],arr:tuple[int,int]): # 函数T[i]（多个、已死亡）
+def T(args:tuple[int],arr:tuple[int,int]):
     return not JBQ.get_chess_arr_by_id(args[0])
-                
-EX_NAME = "关联棋子"
-EX_VERSION = "2.1"
+
+EX_NAME = "更多的可行走函数"
+EX_VERSION = "1.1"
 
 loc_rules = {
+    "NP":NP,
+    "C":C,
     "D":D,
     "R":R,
     "T":T
 }
 
 HELP = """
+`NP[x1|y1|x2|y2|...]`，当棋子不在`(x1,y1)`、`(x2,y2)`等点时，该规则的值为`true`，否则为`false`
+`C[i|m|n]`，当场上编号为`i`的棋子（当`i`的值为0时表示所有棋子）的数量介于[m,n]之间时，该规则的值为`true`，否则为`false`
 `D[i|t|d]`，当棋子与编号为`i`的棋子（该棋子必须是唯一存活的，否则该规则的值为`false`）的直角距离（即只能横纵移动时从一个棋子移动到另一个的步数）大于（当`t`的值为1）或等于（当`t`的值为0）或小于（当`t`的值为-1）`d`时，该规则的值为`true`，否则为`false`
-`R[i|t|d|r1|r2|...]`，当编号为`i`的棋子（该棋子必须是唯一存活的，否则该规则的值为`false`）在棋子的`r`（`r1`、`r2`等）侧（参见下文1-8编号）且此时还满足`D[i|t|d]`时，该规则的值为`true`，否则为`false`
+`R[i|t|d|r1|r2|...]`，当编号为`i`的棋子（该棋子必须是唯一存活的，否则该规则的值为`false`）在棋子的`r`（`r1`、`r2`等）侧且此时还满足`D[i|t|d]`时，该规则的值为`true`，否则为`false`
 `T[i]`，当场上仍有多个编号为`i`的棋子或无编号为`i`的棋子时，该规则的值为`true`，否则为`false`
 """
