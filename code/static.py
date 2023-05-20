@@ -1,25 +1,66 @@
 import os
 import sys
+import csv
 import json
 
-from tkinter.messagebox import showinfo,showerror,askyesno
+from tkinter.messagebox import showerror
 
-# 导入第三方模块xlrd并进行版本判断
+# 导入第三方模块openpyxl并进行版本判断
 try:
-    import xlrd
+    from openpyxl import load_workbook
 except ModuleNotFoundError:
-    res = askyesno("提示","未安装支持库xlrd，是否立即进行安装？")
-    if res:
-        from pip._internal import main as pip
-        pip(["install","xlrd==1.2.0"])
-        showinfo("提示","请重新进入程序，如果仍然未安装请在cmd中使用以下命令手动安装xlrd：\npython.exe -m pip install xlrd==1.2.0")
-    sys.exit()
-if xlrd.__version__.startswith("2."):
-    showinfo("提示",f"xlrd版本过高，应使用1.2.0版本，当前版本为{xlrd.__version__}，请在cmd中使用以下命令手动重新安装xlrd：\npython.exe -m pip uninstall xlrd&&python.exe -m pip install xlrd==1.2.0")
+    showerror("提示","未安装openpyxl")
     sys.exit()
 
-basepath = os.path.split(__file__)[0]
-static_path = os.path.join(basepath,"static.json.py")
+RELEASE_DATE = "2023-05-20"
+COLOR_STYLES = {
+    "normal":{
+        "name":"标准",
+        "colors":{
+            "chessboard":"khaki",
+            "red-label":"pink",
+            "blue-label":"skyblue",
+            "chess-bg":"lightyellow",
+            "blank-feasible-bg":"lightgreen",
+            "occupied-feasible-bg":"pink",
+            "red-chess-fg":"lightcoral",
+            "red-tran-chess-fg":"red",
+            "blue-chess-fg":"cornflowerblue",
+            "blue-tran-chess-fg":"blue",
+            "neutral-chess-fg":"green"
+        }
+    },
+    "dark":{
+        "name":"暗色",
+        "colors":{
+            "chessboard":"grey",
+            "red-label":"pink",
+            "blue-label":"skyblue",
+            "chess-bg":"darkslategrey",
+            "blank-feasible-bg":"green",
+            "occupied-feasible-bg":"firebrick",
+            "red-chess-fg":"pink",
+            "red-tran-chess-fg":"lightcoral",
+            "blue-chess-fg":"deepskyblue",
+            "blue-tran-chess-fg":"dodgerblue",
+            "neutral-chess-fg":"lightgreen"
+        }
+    }
+}
+COMPONENT_STYLE = {
+    "btn-style":{
+        "relief":"groove",
+        "bg":"snow"
+    },
+    "label-style":{
+        "relief":"groove"
+    }
+}
+static = {
+    "color-styles":1,
+    "shape-style":COMPONENT_STYLE
+}
+
 setting_path = "setting.json"
 
 ARR = tuple[int,int] # 棋子位置数组
@@ -75,39 +116,38 @@ class MapViewer:
 
     @staticmethod
     def view(filename:str):
-        xs = xlrd.open_workbook(filename)
+        wb = load_workbook(filename)
         # 处理棋子
-        chesses_xs = xs.sheet_by_name("chesses")
+        chesses_sheet = wb.get_sheet_by_name("chesses")
         chesses = []
-        title = chesses_xs.row(0)
-        for i in range(chesses_xs.nrows - 1):
-            rd = chesses_xs.row(i + 1)
-            name = str(rd[1].value).strip('"')
-            belong = int(rd[2].value)
-            is_captain = rd[3].value == "c"
-            move = [MapViewer.parse_move(k) for k in str(rd[4].value).split(";")]
-            tran_con = MapViewer.parse_location(rd[5].value)
-            tran_move = [MapViewer.parse_move(k) for k in str(rd[6].value).split(";")]
-            attr = dict([(title[j + 7].value,k.value) for j,k in enumerate(rd[7:]) if k.value])
+        title = chesses_sheet[1]
+        for i in chesses_sheet[2:chesses_sheet.max_row]:
+            name = str(i[1].value).strip('"')
+            belong = int(i[2].value)
+            is_captain = i[3].value == "c"
+            move = [MapViewer.parse_move(j) for j in str(i[4].value).split(";")]
+            tran_con = MapViewer.parse_location(i[5].value) if i[5].value else []
+            tran_move = [MapViewer.parse_move(j) for j in str(i[6].value).split(";")]
+            attr = dict([(title[j + 7].value,k.value) for j,k in enumerate(i[7:]) if k.value])
             if len(move) < 2 or len(tran_move) < 2:
                 raise TypeError
             chesses.append([name,belong,is_captain,move,tran_con,tran_move,attr])
         # 处理地图
-        map_xs = xs.sheet_by_name("map")
+        map_sheet = wb.get_sheet_by_name("map")
         map = []
-        rl = int(map_xs.cell_value(0,1))
-        cl = int(map_xs.cell_value(0,3))
+        rl = int(map_sheet[1][1].value)
+        cl = int(map_sheet[1][3].value)
         for i in range(rl):
             map.append([])
             for j in range(cl):
-                val = map_xs.cell_value(i + 1,j)
-                map[-1].append(int(val) if val else None)
+                val = map_sheet[i + 2][j]
+                map[-1].append(int(val.value) if val.value else None)
         # 处理特殊规则
-        rules_xs = xs.sheet_by_name("rules")
+        rules_sheet = wb.get_sheet_by_name("rules")
         rules = {}
-        rules["tran"] = rules_xs.cell_value(1,2) == "c" # 启用升变
-        rules["back"] = rules_xs.cell_value(2,2) == "c" # 启用悔棋
-        rules["restrict_move_ne"] = rules_xs.cell_value(3,2) == "c" # 限制连续3步以上移动中立棋子
+        rules["tran"] = rules_sheet[2][2].value == "c" # 启用升变
+        rules["back"] = rules_sheet[3][2].value == "c" # 启用悔棋
+        rules["restrict_move_ne"] = rules_sheet[4][2].value == "c" # 限制连续3步以上移动中立棋子
         # 将打开的棋盘文件保存到设置中
         setting = load(setting_path)
         setting["lastly-load-map"] = filename
@@ -115,7 +155,6 @@ class MapViewer:
         return (chesses,map,rules)
 
 def load_data():
-    static = load(static_path)
     if os.path.exists(setting_path):
         setting = load(setting_path)
     else:
@@ -126,12 +165,10 @@ def load_data():
         }
         write(setting_path,setting)
     static_data = {}
-    static_data["VERSION"] = static["VERSION"]
-    static_data["about"] = static["about"]
-    static_data["color-styles"] = [(i,static["color-styles"][i]["name"]) for i in static["color-styles"]]
+    static_data["color-styles"] = [(i,COLOR_STYLES[i]["name"]) for i in COLOR_STYLES]
     static_data["color-style-name"] = setting["color-styles"]
-    static_data["colors"] = static["color-styles"][setting["color-styles"]]["colors"]
-    static_data["shape-style"] = static["shape-style"]
+    static_data["colors"] = COLOR_STYLES[setting["color-styles"]]["colors"]
+    static_data["shape-style"] = COMPONENT_STYLE
     static_data["lastly-load-map"] = setting["lastly-load-map"]
     static_data["used-extensions"] = setting["used-extensions"]
     return static_data
@@ -150,8 +187,16 @@ def refresh_color(value:str):
     setting["color-styles"] = value
     write(setting_path,setting)
     static_data["color-style-name"] = value
-    static = load(static_path)
-    static_data["colors"] = static["color-styles"][value]["colors"]
+    static_data["colors"] = COLOR_STYLES[value]["colors"]
+
+def save_record(record_path:str,history:list[tuple[list[list],str]]):
+    print_chessboard = []
+    for index,i in enumerate(history):
+        print_chessboard.append([f"回合{index + 1}"])
+        print_chessboard.extend([[k.name if k else " " for k in j] for j in i[0]])
+    with open(record_path,"w",newline = "") as wfile:
+        writer = csv.writer(wfile)
+        writer.writerows(print_chessboard)
 
 try:
     static_data = load_data()

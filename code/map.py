@@ -2,7 +2,7 @@ import copy
 
 from tkinter.messagebox import showinfo
 
-from .static import ARR,static_data
+from .static import ARR
 from .extension import ExtensionManager
 
 class Chess:
@@ -17,20 +17,6 @@ class Chess:
         self.attr = copy.copy(attr) # 每个棋子都有独特的attr
         self.map_data = map_data
         self.is_tran = False
-        self.get_name_space()
-
-    # 计算name前后的空格
-    def get_name_space(self):
-        self.attr["name_withspace"] = self.name
-        name_length = len(self.name.encode(encoding = "gbk"))
-        side = True # True为右侧
-        while name_length < 4:
-            if side:
-                self.attr["name_withspace"] += " "
-            else:
-                self.attr["name_withspace"] = " " + self.attr["name_withspace"]
-            side = not side
-            name_length += 1
 
     # 当前可移动位置
     @property
@@ -46,58 +32,6 @@ class Chess:
                     if self.map_data.is_in_position(arr,j[1]):
                         move[-1].append(j[0])
         return move
-
-    # 在按钮上显示的文字
-    def text(self,rev:bool):
-        text = ""
-        now_move = self.now_move # 先赋值中间变量，避免调用self.now_move属性时重新计算
-        def _in(num,string = " " * 3):
-            nonlocal text
-            if num in now_move[1]:
-                text += "*"
-            elif num in now_move[0]:
-                text += "·"
-            else:
-                text += " "
-            text += string
-        _in(1)
-        _in(2)
-        _in(3,"\n")
-        _in(4," " * 2) # 空出名字位置
-        _in(5,"\n")
-        _in(6)
-        _in(7)
-        _in(8,"")
-        # 插入名字
-        text = list(text)
-        if rev:
-            text.reverse()
-        text.insert(12,self.attr["name_withspace"])
-        text = "".join(text)
-        # 设置字体颜色
-        if self.belong == 1:
-            if self.is_tran or not self.tran_con:
-                self.fg = static_data["colors"]["red-tran-chess-fg"]
-            else:
-                self.fg = static_data["colors"]["red-chess-fg"]
-        elif self.belong == 2:
-            if self.is_tran or not self.tran_con:
-                self.fg = static_data["colors"]["blue-tran-chess-fg"]
-            else:
-                self.fg = static_data["colors"]["blue-chess-fg"]
-        else:
-            self.fg = static_data["colors"]["neutral-chess-fg"]
-        return text
-
-    # 获取基本信息
-    @property
-    def info(self):
-        belong = "红方" if self.belong == 1 else "蓝方" if self.belong == 2 else "中立"
-        is_captain = "是" if self.is_captain else "否"
-        is_tran = ("是" if self.is_tran else "否") if self.tran_con else "无法升变"
-        move = self.tran_move if self.is_tran else self.move
-        info = f"名称：{self.name}\n编号：{self.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}\n其他参数：{self.attr}\n目前可行走函数：{move}"
-        return info
 
     # 升变条件检测
     def tran(self,arr:ARR):

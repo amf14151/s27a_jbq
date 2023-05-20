@@ -1,10 +1,10 @@
 # 精班棋
 
-![](https://img.shields.io/badge/release-1.0.0-blue)
+![](https://img.shields.io/badge/release-1.0.1-blue)
 ![](https://img.shields.io/badge/last%20commit-may-yellow)
 ![](https://img.shields.io/badge/license-MIT-green)
 
-精班棋是一款自由度很高的将棋
+精班棋是一款自由度很高的棋类游戏
 
 这款游戏的最大特点就是地图的可自定义性以及对于扩展插件的高度支持
 
@@ -22,8 +22,6 @@
 
 [(返回目录)](#目录)
 
-您需要一个`Python 3`环境
-
 您可以从[这里](https://github.com/amf14151/s27a_jbq/archive/refs/heads/main.zip)直接下载文件并自行安装，或使用以下指令来安装
 
 ```
@@ -37,7 +35,7 @@ from s27a_jbq import generate_game
 
 generate_game(
    game_path = "JBQ", # 游戏文件夹位置
-   record_path = None, # 棋局记录位置，使用相对路径时根目录为游戏文件夹路径
+   record_path = None, # 棋局记录位置，格式为.csv，使用相对路径时根目录为游戏文件夹路径
    display = "window" # 游戏打开方式，'window'为窗口模式
 )
 ```
@@ -45,6 +43,8 @@ generate_game(
 也可以在建立文件夹后直接使用以下代码构建主文件（不推荐）
 
 ``` python
+from s27a_jbq.game import App
+
 def main():
    app = App()
    app.run()
@@ -67,6 +67,8 @@ def main():
 每个棋子上会有可移动方向标注，在己方回合单击棋子即可查看该棋子具体可移动格子，右键棋子可以查看该棋子详细信息
 
 一些棋子在不同的位置会有不同的可移动格子，每个棋子的具体可移动格子根据地图、扩展决定
+
+在对局结束后，如果设置了`record_path`，则会在文件夹中创建同名文件，格式为`.csv`
 
 ## 地图
 
@@ -315,4 +317,4 @@ def main():
 
 [(返回目录)](#目录)
 
-[MIT License](./LICENSE)
+[MIT License](https://github.com/amf14151/s27a_jbq/blob/main/LICENSE)

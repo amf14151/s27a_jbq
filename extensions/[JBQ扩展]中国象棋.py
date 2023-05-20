@@ -1,5 +1,5 @@
 EX_NAME = "中国象棋"
-EX_VERSION = "0.1"
+EX_VERSION = "0.2"
 
 def check_can_go(can_go:list[list[tuple[int,int]]],chess,arr:tuple[int,int]):
     if chess.name == "相" or chess.name == "象":
@@ -38,6 +38,8 @@ def check_can_go(can_go:list[list[tuple[int,int]]],chess,arr:tuple[int,int]):
                 continue
             for j in i[1:]:
                 s2_arr = JBQ.get_arr_by_rd(s_arr,j,1)
+                if not s2_arr:
+                    continue
                 ch = JBQ.get_chess_by_arr(s2_arr)
                 if ch and ch.belong == JBQ.turn:
                     continue

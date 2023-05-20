@@ -49,6 +49,7 @@ class ExtensionManager:
         self.extensions = list[Extension]()
         ExtensionManager.Ext = self # 全局变量
         if not os.path.exists(ExtensionManager.PATH):
+            os.mkdir(ExtensionManager.PATH)
             return
         for i in os.listdir(ExtensionManager.PATH):
             self.load_extension(os.path.join(ExtensionManager.PATH,i))
@@ -102,7 +103,7 @@ class ExtensionManager:
                 try:
                     new_can_go = i.check_can_go(can_go,chess,arr)
                 except:
-                    pass
+                    new_can_go = None
             if new_can_go != None:
                 can_go = [j for j in new_can_go if j]
         return can_go
