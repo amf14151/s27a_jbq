@@ -3,16 +3,9 @@ import sys
 import csv
 import json
 
-from tkinter.messagebox import showerror
+from openpyxl import load_workbook
 
-# 导入第三方模块openpyxl并进行版本判断
-try:
-    from openpyxl import load_workbook
-except ModuleNotFoundError:
-    showerror("提示","未安装openpyxl")
-    sys.exit()
-
-RELEASE_DATE = "2023-05-20"
+RELEASE_DATE = "2023-05-25"
 COLOR_STYLES = {
     "normal":{
         "name":"标准",
@@ -56,12 +49,8 @@ COMPONENT_STYLE = {
         "relief":"groove"
     }
 }
-static = {
-    "color-styles":1,
-    "shape-style":COMPONENT_STYLE
-}
 
-setting_path = "setting.json"
+SETTING_PATH = "setting.json"
 
 ARR = tuple[int,int] # 棋子位置数组
 
@@ -87,8 +76,8 @@ class MapViewer:
         for i in data:
             if not i:
                 continue
-            command = i[0]
-            args = [int(j) for j in i[2:-1].split("|")]
+            command = i.split("[")[0]
+            args = [int(j) for j in i[len(command) + 1:-1].split("|")]
             loc.append(tuple([command] + args))
         return loc
 
@@ -149,57 +138,67 @@ class MapViewer:
         rules["back"] = rules_sheet[3][2].value == "c" # 启用悔棋
         rules["restrict_move_ne"] = rules_sheet[4][2].value == "c" # 限制连续3步以上移动中立棋子
         # 将打开的棋盘文件保存到设置中
-        setting = load(setting_path)
+        setting = load(SETTING_PATH)
         setting["lastly-load-map"] = filename
-        write(setting_path,setting)
+        write(SETTING_PATH,setting)
         return (chesses,map,rules)
 
-def load_data():
-    if os.path.exists(setting_path):
-        setting = load(setting_path)
-    else:
-        setting = {
-            "color-styles":"normal",
-            "lastly-load-map":"",
-            "used-extensions":[]
-        }
-        write(setting_path,setting)
-    static_data = {}
-    static_data["color-styles"] = [(i,COLOR_STYLES[i]["name"]) for i in COLOR_STYLES]
-    static_data["color-style-name"] = setting["color-styles"]
-    static_data["colors"] = COLOR_STYLES[setting["color-styles"]]["colors"]
-    static_data["shape-style"] = COMPONENT_STYLE
-    static_data["lastly-load-map"] = setting["lastly-load-map"]
-    static_data["used-extensions"] = setting["used-extensions"]
-    return static_data
-
 def refresh_extension(extensions):
-    setting = load(setting_path)
+    setting = load(SETTING_PATH)
     setting["used-extensions"] = []
     for i in extensions:
         if i.use:
             setting["used-extensions"].append(i.name)
-    write(setting_path,setting)
+    write(SETTING_PATH,setting)
     static_data["used-extensions"] = setting["used-extensions"]
 
 def refresh_color(value:str):
-    setting = load(setting_path)
+    setting = load(SETTING_PATH)
     setting["color-styles"] = value
-    write(setting_path,setting)
+    write(SETTING_PATH,setting)
     static_data["color-style-name"] = value
     static_data["colors"] = COLOR_STYLES[value]["colors"]
 
-def save_record(record_path:str,history:list[tuple[list[list],str]]):
+def set_record_path(path:str):
+    setting = load(SETTING_PATH)
+    setting["record-path"] = path
+    write(SETTING_PATH,setting)
+    static_data["record-path"] = path
+
+def save_record(history:list[tuple[list[list],str]]):
+    if not static_data["record-path"]:
+        return
     print_chessboard = []
     for index,i in enumerate(history):
         print_chessboard.append([f"回合{index + 1}"])
         print_chessboard.extend([[k.name if k else " " for k in j] for j in i[0]])
-    with open(record_path,"w",newline = "") as wfile:
+    with open(static_data["record-path"],"w",newline = "") as wfile:
         writer = csv.writer(wfile)
         writer.writerows(print_chessboard)
 
-try:
-    static_data = load_data()
-except (FileNotFoundError,KeyError):
-    showerror("错误","配置文件错误, 请尝试删除setting文件或重新下载static文件")
-    sys.exit()
+def load_data():
+    if os.path.exists(SETTING_PATH):
+        setting = load(SETTING_PATH)
+    else:
+        setting = {
+            "color-styles":"normal",
+            "lastly-load-map":"",
+            "record-path":"",
+            "used-extensions":[]
+        }
+        write(SETTING_PATH,setting)
+    static_data = {}
+    try:
+        static_data["color-styles"] = [(i,COLOR_STYLES[i]["name"]) for i in COLOR_STYLES]
+        static_data["color-style-name"] = setting["color-styles"]
+        static_data["colors"] = COLOR_STYLES[setting["color-styles"]]["colors"]
+        static_data["shape-style"] = COMPONENT_STYLE
+        static_data["lastly-load-map"] = setting["lastly-load-map"]
+        static_data["record-path"] = setting["record-path"]
+        static_data["used-extensions"] = setting["used-extensions"]
+    except: # setting文件格式错误
+        os.remove(SETTING_PATH)
+        static_data = load_data()
+    return static_data
+
+static_data = load_data()

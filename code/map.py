@@ -33,13 +33,6 @@ class Chess:
                         move[-1].append(j[0])
         return move
 
-    # 升变条件检测
-    def tran(self,arr:ARR):
-        if self.is_tran:
-            return
-        if self.map_data.is_in_position(arr,self.tran_con):
-            self.is_tran = True
-
 class Map:
     def __init__(self,chesses:list,map:list[list[int]],rules:dict):
         self.chesses = chesses
@@ -112,8 +105,9 @@ class Map:
                     if arr[1] == get_abs_pos(j,self.cl):
                         return True
             elif command == "P": # 函数P（点）
-                if arr == (get_abs_pos(i[1],self.rl),get_abs_pos(i[2],self.cl)):
-                    return True
+                for j in range(1,len(i),2):
+                    if arr == (get_abs_pos(i[j],self.rl),get_abs_pos(i[j + 1],self.cl)):
+                        return True
             for j in ExtensionManager.Ext.loc_rules: # 扩展中的函数
                 if command == j:
                     if ExtensionManager.Ext.loc_rules[j](i[1:],arr):
@@ -136,7 +130,19 @@ class Map:
             self.win(turn)
         self.chessboard[arr1[0]][arr1[1]],self.chessboard[arr2[0]][arr2[1]] = None,self.chessboard[arr1[0]][arr1[1]]
         if self.rules["tran"]:
-            self.chessboard[arr2[0]][arr2[1]].tran(arr2)
+            self.tran()
+
+    # 棋子升变
+    def tran(self):
+        for i in range(self.rl):
+            for j in range(self.cl):
+                chess = self.chessboard[i][j]
+                if not chess:
+                    continue
+                if chess.is_tran:
+                    continue
+                if self.is_in_position((i,j),chess.tran_con):
+                    chess.is_tran = True
 
 class HistoryRecorder:
     def __init__(self,map_data:Map):

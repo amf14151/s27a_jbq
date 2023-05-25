@@ -12,12 +12,14 @@ from .window import MainWindow,GameWindow,SettingWindow
 from .extension import ExtAPI,ExtensionManager
 
 class App:
-    def __init__(self,record_path:str = None):
+    RUNNING = False
+    def __init__(self):
+        if App.RUNNING:
+            raise RuntimeError("App只能有一个实例")
+        App.RUNNING = True
         self.map_data = None
         self.map_path = None
-        if record_path and not record_path.endswith(".csv"):
-            record_path += ".csv"
-        self.record_path = record_path 
+        self.open_setting = False
 
     def run(self,debug:bool = False):
         self.debug = debug
@@ -58,16 +60,18 @@ class App:
         self.window.set_map(self.map_path)
 
     def start_game(self):
+        if self.open_setting:
+            return
         if not self.map_data:
             showinfo("提示","暂未选择地图")
             return
         self.window.withdraw()
         if self.debug:
-            game = Game(self.map_data,self.record_path,self.debug)
+            game = Game(self.map_data,self.debug)
             game.start()
         else:
             try:
-                game = Game(self.map_data,self.record_path,self.debug)
+                game = Game(self.map_data,self.debug)
                 game.start()
             except Exception as e:
                 showerror("错误",f"游戏运行错误：{e}")
@@ -79,15 +83,20 @@ class App:
         self.window.refresh_extension()
 
     def setting(self):
-        setting_window = SettingWindow(self.add_extension,self.window.refresh_extension)
-        setting_window.mainloop()
+        if not self.open_setting:
+            self.open_setting = True
+            setting_window = SettingWindow(self.close_setting_window,self.add_extension,self.window.refresh_extension)
+            setting_window.mainloop()
+
+    def close_setting_window(self,window:SettingWindow):
+        self.open_setting = False
+        window.destroy()
 
 # 游戏类
 # 每场创建一个新的Game对象
 class Game:
-    def __init__(self,map_data:Map,record_path:str,debug:bool):
+    def __init__(self,map_data:Map,debug:bool):
         self.map_data = map_data
-        self.record_path = record_path
         self.debug = debug
         self.map_data.init_chessboard(self.win)
         self.history_recorder = HistoryRecorder(self.map_data)
@@ -251,6 +260,5 @@ class Game:
         self.stop()
 
     def stop(self):
-        if self.record_path:
-            save_record(self.record_path,self.history_recorder.history) # 记录棋局
+        save_record(self.history_recorder.history) # 记录棋局
         self.running = False

@@ -1,5 +1,6 @@
 def NP(args:tuple[int],arr:tuple[int,int]):
-    arrs = [args[i:i + 2] for i in range(0,len(args),2)]
+    get_abs_pos = lambda a,al:(a - 1) if a > 0 else a + al
+    arrs = [(get_abs_pos(args[i],JBQ.rl),get_abs_pos(args[i + 1],JBQ.cl)) for i in range(0,len(args),2)]
     return arr not in arrs
 
 def C(args:tuple[int],arr:tuple[int,int]):
@@ -66,7 +67,7 @@ def T(args:tuple[int],arr:tuple[int,int]):
     return not JBQ.get_chess_arr_by_id(args[0])
 
 EX_NAME = "更多的可行走函数"
-EX_VERSION = "1.1"
+EX_VERSION = "1.2"
 
 loc_rules = {
     "NP":NP,
