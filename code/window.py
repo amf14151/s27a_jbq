@@ -1,6 +1,11 @@
-import tkinter as tk
+import sys
+if sys.platform != "win32":
+    sys.stdout("程序必须在Windows系统中运行")
+    sys.exit()
+
 import webbrowser
 
+import tkinter as tk
 from tkinter.messagebox import showinfo
 from tkinter.filedialog import askopenfilename,asksaveasfilename
 
@@ -16,6 +21,11 @@ class MainWindow(tk.Tk):
         self.title(f"精班棋 {__version__}{' [debug mode]' if debug else ''}")
         self.minsize(480,360)
         self.resizable(width = False,height = False)
+        self.init_window()
+        self.refresh_extension()
+        self.init_menu()
+
+    def init_window(self):
         self.start_btn = tk.Button(self,text = "开始游戏",width = 60,height = 3,**static_data["shape-style"]["btn-style"],command = self.app_api["start_game"])
         self.start_btn.pack(pady = 5)
         self.map_label = tk.Label(self,text = "未选择地图",width = 60,height = 3,**static_data["shape-style"]["label-style"])
@@ -31,10 +41,6 @@ class MainWindow(tk.Tk):
         self.set_extension_btn = tk.Button(self,text = "设置扩展",width = 15,height = 2,**static_data["shape-style"]["btn-style"],command = self.app_api["setting"])
         self.set_extension_btn.pack(pady = 5)
 
-        self.refresh_extension()
-        self.init_menu()
-
-    # 初始化菜单栏
     def init_menu(self):
         self.menu = tk.Menu(self)
         self.config(menu = self.menu)
@@ -55,8 +61,7 @@ class MainWindow(tk.Tk):
         self.help_menu = tk.Menu(self.menu,tearoff = False)
         self.menu.add_cascade(label = "帮助(H)",underline = 3,menu = self.help_menu)
         self.help_menu.add_command(label = "精班棋文档",command = self.open_url("https://github.com/amf14151/s27a_jbq/blob/main/README.md"))
-        self.help_menu.add_command(label = "获取地图",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/map"))
-        self.help_menu.add_command(label = "获取扩展",command = self.open_url("https://github.com/amf14151/s27a_jbq/tree/main/extensions"))
+        self.help_menu.add_command(label = "获取地图/扩展",command = self.open_url("https://amf14151.github.io/JBQ/"))
         self.help_menu.add_separator()
         self.help_menu.add_command(label = "反馈",command = self.open_url("https://github.com/amf14151/s27a_jbq/issues"))
         self.help_menu.add_separator()
@@ -85,12 +90,13 @@ class MainWindow(tk.Tk):
         showinfo("关于精班棋",f"版本: {__version__}\n发布日期: {RELEASE_DATE}")
 
 class GameWindow(tk.Tk):
-    def __init__(self,belong:int,map_data:Map,game_api:dict):
+    def __init__(self,belong:int,map_data:Map,game_api:dict,debug:bool):
         super().__init__()
         self.belong = belong
         self.map_data = map_data
         self.game_api = game_api
-        self.can_go_prompt_list = ["·","*","o","x","%"]
+        self.debug = debug
+        self.can_go_prompt_list = ["·","*","o","x","$","%"]
         self.show_can_go_prompt = True
         self.title("红方" if self.belong == 1 else "蓝方")
         self.resizable(width = False,height = False)
@@ -169,6 +175,8 @@ class GameWindow(tk.Tk):
             for j in range(self.map_data.cl):
                 self.chess_btn[-1].append(tk.Button(self.chess_frame,height = 3,width = 8,relief = "flat",bd = 0,command = self.click(i,j,1)))
                 self.chess_btn[-1][-1].bind("<Button 3>",self.click(i,j,3))
+                self.chess_btn[-1][-1].bind("<Enter>",self.click(i,j,4))
+                self.chess_btn[-1][-1].bind("<Leave>",self.click(i,j,5))
                 self.chess_btn[-1][-1].grid(row = i,column = j,padx = 1,pady = 1)
         self.chess_frame.pack()
         self.mess_label = tk.Label(self,height = 3,width = 24)
@@ -179,12 +187,52 @@ class GameWindow(tk.Tk):
 
     # 点击棋子回调中转函数
     def click(self,x:int,y:int,key:int):
+        x = self.getx(x)
+        y = self.gety(y)
         def wrapper(event = None):
-            if key == 1:
-                self.game_api["click"]((self.getx(x),self.gety(y)),self.belong)
+            if key == 1: # 左键
+                self.game_api["click"]((x,y),self.belong)
+                return
             else:
-                self.game_api["info"]((self.getx(x),self.gety(y)))
+                chess = self.game_api["get_chess"]((x,y))
+                if not chess:
+                    return
+            if key == 3: # 右键
+                self.get_info(chess)
+                return
+            else:
+                if self.game_api["chosen_turn"]() == self.belong:
+                    return
+            if key == 4: # 进入
+                self.choose(None,self.game_api["get_can_go"](chess,(x,y)))
+            elif key == 5: # 离开
+                self.choose(None,self.game_api["get_can_go"](chess,(x,y)),remove = True)
         return wrapper
+
+    # 显示棋子基本信息
+    def get_info(self,chess:Chess):
+        belong = "红方" if chess.belong == 1 else "蓝方" if chess.belong == 2 else "中立"
+        is_captain = "是" if chess.is_captain else "否"
+        is_tran = ("是" if chess.is_tran else "否") if chess.tran_con else "无法升变"
+        info = f"名称：{chess.name}\n编号：{chess.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}"
+        if self.debug:
+            if chess.attr:
+                attr = "\n    ".join([f"{i}：{j}" for i,j in zip(chess.attr.keys(),chess.attr.values())])
+                info += f"\n其他参数：\n    {attr}"
+            move = chess.tran_move if chess.is_tran else chess.move
+            show_move = ""
+            for i in range(len(move)):
+                if not move[i]:
+                    continue
+                show_move += f"\n    第{i + 1}项（{self.can_go_prompt_list[i]}）："
+                for j in move[i]:
+                    show_move += f"\n        方向{j[0]}："
+                    if j[1:]:
+                        show_move += f"{j[1:]}"
+                    else:
+                        show_move += "任意"
+            info += f"\n目前可行走函数：{show_move}"
+        showinfo("棋子信息",info)
 
     def set_text(self,type:str,fro:int,turn:tuple = None):
         if type == "turn": # 设置回合
@@ -192,7 +240,10 @@ class GameWindow(tk.Tk):
         elif type == "mess": # 设置将军
             self.mess_label["text"] = f"{'红方' if fro == 1 else '蓝方'}将军！" if fro else ""
 
-    def choose(self,can_go:list[ARR],remove:bool = False):
+    def choose(self,arr:ARR,can_go:list[ARR],remove:bool = False):
+        if arr:
+            bg = "chess-bg" if remove else "selected-chess-bg"
+            self.chess_btn[self.getx(arr[0])][self.gety(arr[1])]["bg"] = static_data["colors"][bg]
         for i in can_go:
             bg = "chess-bg" if remove else ("occupied-feasible-bg" if self.map_data.chessboard[i[0]][i[1]] else "blank-feasible-bg")
             self.chess_btn[self.getx(i[0])][self.gety(i[1])]["bg"] = static_data["colors"][bg]

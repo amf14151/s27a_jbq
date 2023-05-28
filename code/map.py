@@ -43,8 +43,7 @@ class Map:
         self.red_move_ne = 0 # 红方移动中立棋子次数
         self.blue_move_ne = 0
 
-    # 初始化棋盘
-    # 每局初始化一次
+    # 初始化棋盘，每局初始化一次
     def init_chessboard(self,win_func):
         self.win = win_func
         self.chessboard = list[list[Chess]]()
@@ -113,6 +112,10 @@ class Map:
                     if ExtensionManager.Ext.loc_rules[j](i[1:],arr):
                         return True
         return False
+
+    # 是否可以吃子
+    def can_eat(self,chess1:Chess,chess2:Chess):
+        return chess1.belong != 3 and chess2.belong != 3 and chess1.belong != chess2.belong
 
     # 移动棋子
     def move(self,arr1:ARR,arr2:ARR,turn:int):

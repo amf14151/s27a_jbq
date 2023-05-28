@@ -1,11 +1,10 @@
 import os
-import sys
 import csv
 import json
 
 from openpyxl import load_workbook
 
-RELEASE_DATE = "2023-05-25"
+RELEASE_DATE = "2023-05-28"
 COLOR_STYLES = {
     "normal":{
         "name":"标准",
@@ -14,6 +13,7 @@ COLOR_STYLES = {
             "red-label":"pink",
             "blue-label":"skyblue",
             "chess-bg":"lightyellow",
+            "selected-chess-bg":"yellow",
             "blank-feasible-bg":"lightgreen",
             "occupied-feasible-bg":"pink",
             "red-chess-fg":"lightcoral",
@@ -30,6 +30,7 @@ COLOR_STYLES = {
             "red-label":"pink",
             "blue-label":"skyblue",
             "chess-bg":"darkslategrey",
+            "selected-chess-bg":"darkgrey",
             "blank-feasible-bg":"green",
             "occupied-feasible-bg":"firebrick",
             "red-chess-fg":"pink",

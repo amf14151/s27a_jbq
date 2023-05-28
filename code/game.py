@@ -1,10 +1,4 @@
-import sys
-
-if sys.platform != "win32":
-    sys.stdout("程序必须在Windows系统中运行")
-    sys.exit()
-
-from tkinter.messagebox import showinfo,showwarning,showerror
+from tkinter.messagebox import showinfo,showerror
 
 from .static import ARR,MapViewer,static_data,save_record
 from .map import Chess,Map,HistoryRecorder
@@ -12,9 +6,10 @@ from .window import MainWindow,GameWindow,SettingWindow
 from .extension import ExtAPI,ExtensionManager
 
 class App:
-    RUNNING = False
+    chess = Chess # 扩展调用
+    running = False
     def __init__(self):
-        if App.RUNNING:
+        if App.running:
             raise RuntimeError("App只能有一个实例")
         App.RUNNING = True
         self.map_data = None
@@ -48,11 +43,11 @@ class App:
                 self.map_data = Map(*MapViewer.view(filename))
             except FileNotFoundError:
                 if error_prompt:
-                    showwarning("提示","未找到地图文件")
+                    showerror("错误","未找到地图文件")
                 return
             except:
                 if error_prompt:
-                    showwarning("提示","地图文件格式错误")
+                    showerror("错误","地图文件格式错误")
                 return
         if success_prompt:
             showinfo("提示","地图文件加载成功")
@@ -97,17 +92,18 @@ class App:
 class Game:
     def __init__(self,map_data:Map,debug:bool):
         self.map_data = map_data
-        self.debug = debug
         self.map_data.init_chessboard(self.win)
         self.history_recorder = HistoryRecorder(self.map_data)
         game_api = {
             "click":self.click,
-            "info":self.get_info,
+            "get_chess":lambda arr:self.map_data.chessboard[arr[0]][arr[1]],
+            "get_can_go":self.get_can_go,
+            "chosen_turn":lambda:self.turn if self.chosen else None,
             "back":self.back,
             "stop":self.stop
         }
-        self.red_window = GameWindow(1,self.map_data,game_api)
-        self.blue_window = GameWindow(2,self.map_data,game_api)
+        self.red_window = GameWindow(1,self.map_data,game_api,debug)
+        self.blue_window = GameWindow(2,self.map_data,game_api,debug)
         ExtAPI.win = self.win
         ExtAPI.stalemate = self.stalemate
 
@@ -163,7 +159,7 @@ class Game:
                 self.history_recorder.add_history(self.map_data,self.turn)
                 self.refresh()
             else:
-                window.choose(self.chosen[1],remove = True)
+                window.choose(*self.chosen,remove = True)
             self.chosen = None
         else: # 选择棋子
             chess = self.map_data.chessboard[arr[0]][arr[1]]
@@ -179,7 +175,7 @@ class Game:
             can_go = self.get_can_go(chess,arr)
             if can_go:
                 self.chosen = [arr,can_go]
-                window.choose(can_go)
+                window.choose(*self.chosen)
 
     # 返回当前棋子可以行走的格子
     def get_can_go(self,chess:Chess,arr:ARR):
@@ -189,7 +185,7 @@ class Game:
             if not d_arr:
                 continue
             mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
-            if (not mp) or (chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn):
+            if (not mp) or self.map_data.can_eat(chess,mp):
                 can_go.append([d_arr])
         for i in chess.now_move[1]:
             can_go.append([])
@@ -201,7 +197,7 @@ class Game:
                 mp = self.map_data.chessboard[d_arr[0]][d_arr[1]]
                 if not mp: # 空格，继续向远处搜索
                     can_go.append(can_go[-1] + [d_arr])
-                elif chess.belong != 3 and mp.belong != 3 and mp.belong != self.turn:
+                elif self.map_data.can_eat(chess,mp):
                     can_go.append(can_go[-1] + [d_arr])
                     break
                 else:
@@ -213,34 +209,6 @@ class Game:
             for j in i:
                 can_go_set.add(j)
         return list(can_go_set)
-
-    # 显示棋子基本信息
-    def get_info(self,arr:ARR):
-        chess = self.map_data.chessboard[arr[0]][arr[1]]
-        if chess:
-            belong = "红方" if chess.belong == 1 else "蓝方" if chess.belong == 2 else "中立"
-            is_captain = "是" if chess.is_captain else "否"
-            is_tran = ("是" if chess.is_tran else "否") if chess.tran_con else "无法升变"
-            info = f"名称：{chess.name}\n编号：{chess.id}\n归属：{belong}\n首领棋子：{is_captain}\n是否升变：{is_tran}"
-            if self.debug:
-                if chess.attr:
-                    attr = "\n    ".join([f"{i}：{j}" for i,j in zip(chess.attr.keys(),chess.attr.values())])
-                    info += f"\n其他参数：\n    {attr}"
-                move = chess.tran_move if chess.is_tran else chess.move
-                show_move = ""
-                for i in range(len(move)):
-                    show_move += f"\n    第{i + 1}项："
-                    if not move[i]:
-                        show_move += "无"
-                        continue
-                    for j in move[i]:
-                        show_move += f"\n        方向{j[0]}："
-                        if j[1:]:
-                            show_move += f"{j[1:]}"
-                        else:
-                            show_move += "任意"
-                info += f"\n目前可行走函数：{show_move}"
-            showinfo("棋子信息",info)
 
     # 悔棋及撤销
     def back(self,steps:int):
@@ -260,5 +228,8 @@ class Game:
         self.stop()
 
     def stop(self):
-        save_record(self.history_recorder.history) # 记录棋局
+        try:
+            save_record(self.history_recorder.history) # 记录棋局
+        except PermissionError:
+            showerror("错误","棋局记录文件被占用")
         self.running = False

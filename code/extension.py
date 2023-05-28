@@ -26,6 +26,12 @@ class ExtAPI:
     def get_chess_arr_by_id(self,id:int):
         return self.app.map_data.get_chess_arr_by_id(id)
 
+    def can_eat(self,chess1,chess2):
+        return self.app.map_data.can_eat(chess1,chess2)
+
+    def add_chess(self,id:int,arr:ARR):
+        self.app.map_data.chessboard[arr[0]][arr[1]] = self.app.chess(id,*self.app.map_data.chesses[id - 1],self.app.map_data)
+
     def move(self,arr1:ARR,arr2:ARR):
         return self.app.map_data.move(arr1,arr2,self.turn)
 

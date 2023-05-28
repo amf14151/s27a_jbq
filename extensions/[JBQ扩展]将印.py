@@ -1,21 +1,21 @@
 EX_NAME = "将印"
-EX_VERSION = "1.1"
+EX_VERSION = "1.2"
 
 class Mark:
     def __init__(self):
         self.mark_belong = 2
 
     # 获取turn方首领位置
-    def get_captain(self,turn:int):
+    def get_captain(self,belong:int):
         for i in range(JBQ.rl):
             for j in range(JBQ.cl):
                 chess = JBQ.get_chess_by_arr((i,j))
-                if chess and chess.belong == turn and chess.is_captain:
+                if chess and chess.belong == belong and chess.is_captain:
                     return (i,j)
 
     # 获取turn方的大旗位置
-    def get_banner(self,turn:int):
-        captain_arr = self.get_captain(turn)
+    def get_banner(self,belong:int):
+        captain_arr = self.get_captain(belong)
         if not captain_arr: # 首领已死亡
             return (-1,-1)
         banner = eval(JBQ.get_chess_by_arr(captain_arr).attr["banner"])
@@ -23,12 +23,12 @@ class Mark:
 
     # 将领在有将印时可以走到大旗中
     def check_can_go(self,can_go:list[list[tuple[int,int]]],chess,arr:tuple[int,int]):
-        if chess.is_captain and self.mark_belong == JBQ.turn:
-            banner_arr = self.get_banner(JBQ.turn)
+        if chess.is_captain and self.mark_belong == chess.belong:
+            banner_arr = self.get_banner(chess.belong)
             if arr != banner_arr: # 不在大旗中
                 if -1 <= arr[0] - banner_arr[0] <= 1 and -1 <= arr[0] - banner_arr[0] <= 1: # 在大旗附近
                     banner_chess = JBQ.get_chess_by_arr(banner_arr)
-                    if (not banner_chess) or (banner_chess.belong != 3 and banner_chess.belong != JBQ.turn):
+                    if (not banner_chess) or JBQ.can_eat(chess,banner_chess):
                         can_go.append([banner_arr])
         return can_go
 

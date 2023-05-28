@@ -1,5 +1,5 @@
 EX_NAME = "大型棋子与合并"
-EX_VERSION = "1.2"
+EX_VERSION = "1.3"
 
 def check_can_go(can_go:list[list[tuple[int,int]]],chess,arr:tuple[int,int]):
     # 根据相对位置确定的绝对位置
@@ -102,13 +102,11 @@ def after_move(arr1:tuple[int,int],arr2:tuple[int,int]):
                 if is_epd: # 已经合体，解体
                     epd_chess.attr["is_epd"] = False
                     epd_chess.name = epd_chess.attr["f_name"]
-                    epd_chess.get_name_space()
                     epd_chess.move,epd_chess.tran_move = epd_chess.attr["f_move"],epd_chess.attr["f_tran_move"]
                 else:
                     epd_chess.attr["is_epd"] = True
                     epd_chess.attr["f_name"] = epd_chess.name # 原名称
                     epd_chess.name = chess.attr["epd_name"].strip('"')
-                    epd_chess.get_name_space()
                     epd_chess.attr["f_move"],epd_chess.attr["f_tran_move"] =  epd_chess.move,epd_chess.tran_move
                     epd_chess.move = epd_chess.tran_move = [[(2,),(4,),(5,),(7,)],[]]
     else:
