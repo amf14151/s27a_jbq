@@ -1,7 +1,7 @@
 # 精班棋
 
-![](https://img.shields.io/badge/release-1.0.3-blue)
-![](https://img.shields.io/badge/last%20commit-may-yellow)
+![](https://img.shields.io/badge/release-1.1.0-blue)
+![](https://img.shields.io/badge/last%20commit-june-yellow)
 ![](https://img.shields.io/badge/license-MIT-green)
 
 精班棋是一款自由度很高的棋类游戏
@@ -22,7 +22,9 @@
 
 [(返回目录)](#目录)
 
-您可以在[精班棋官网](https://amf14151.github.io/JBQ/)下载exe版本并获取对应的地图、扩展包，也可以按照下面的步骤安装模块并使用
+## exe版本
+
+您可以在[精班棋官网](https://amf14151.github.io/JBQ/)下载exe版本并获取对应的地图、扩展包
 
 ## 安装模块
 
@@ -34,39 +36,24 @@
 python.exe -m pip install s27a_jbq
 ```
 
-在安装`s27a_jbq`模块后，使用以下命令来构建游戏文件夹
+在安装`s27a_jbq`模块后，使用以下命令进入精班棋面板，并按照说明生成游戏文件夹
 
 ```
-python.exe -m s27a_jbq generate_game {游戏文件夹路径} {游戏运行方式}
+python.exe -m s27a_jbq
 ```
 
-其中，游戏运行方式有以下选择：
+在生成游戏文件夹中，游戏运行方式有以下选择：
 
+- `code`：代码模式（生成代码仅为示例）
 - `window`：窗口模式
 
-示例：
-
-```
-python.exe -m s27a_jbq generate_game C:/JBQ window
-```
-
-上方的代码在C盘根目录中创建名为`JBQ`的游戏文件夹
-
-您也可以在建立文件夹后直接使用以下代码构建主文件（不推荐）
-
-``` python
-from s27a_jbq.game import App
-
-def main():
-   app = App()
-   app.run()
-```
-
-在游戏文件夹中有`extensions`文件夹，该文件夹用于存储扩展，扩展具体使用方法请看[这里](#扩展)
+在窗口模式游戏文件夹中有`extensions`文件夹，该文件夹用于存储扩展，扩展具体使用方法请看[这里](#扩展)
 
 # 使用方法
 
 [(返回目录)](#目录)
+
+以下使用方法均针对窗口模式
 
 ## 游戏过程
 
@@ -86,13 +73,13 @@ def main():
 
 地图文件中可能会有其他名称的表，这些表不会被程序读取，但内部可能会有该地图的说明信息
 
-您可以在[这里](https://github.com/amf14151/s27a_jbq/tree/main/map)下载地图，也可以自定义地图（[查看帮助文档](https://amf14151.github.io/JBQ/help.html)）
+您可以在[这里](https://amf14151.github.io/JBQ/)获取地图，也可以自定义地图（[查看帮助文档](https://amf14151.github.io/JBQ/help.html)）
 
 ## 扩展
 
 扩展是`.py`文件，是用`Python`语言按照一定规则编写的一段代码块，运用扩展可以实现一些独特的行走方法及游戏规则
 
-您可以在[这里](https://github.com/amf14151/s27a_jbq/tree/main/extensions)获取扩展，也可以自行编写扩展（[查看帮助文档](https://amf14151.github.io/JBQ/help.html)）
+您可以在[这里](https://amf14151.github.io/JBQ/)获取扩展，也可以自行编写扩展（[查看帮助文档](https://amf14151.github.io/JBQ/help.html)）
 
 在游戏设置中可以导入扩展，也可以手动将扩展文件添加到游戏文件夹下的`extensions`文件夹下。扩展默认为禁用状态，可以在游戏设置中启用或禁用扩展
 
